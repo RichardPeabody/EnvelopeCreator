@@ -1,360 +1,364 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>C5 Envelope Generator</title>
+  <title>C5 Envelope Creator — Wizard</title>
   <style>
-    :root { --ink: #00004D; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f6f7fb; color: #111; }
-    header { padding: 16px 24px; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 10; }
-    h1 { font-size: 20px; margin: 0; }
-    main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px; }
-    .panel { background: white; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); padding: 16px; }
-    .panel h2 { font-size: 16px; margin: 0 0 12px; }
-    label { display:block; font-size:12px; color:#444; margin:10px 0 6px; }
-    input[type="file"], textarea, input[type="number"], input[type="text"], select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d9deea; border-radius:8px; background:#fbfcff; font-size:14px; }
-    textarea { min-height: 110px; resize: vertical; font-family: inherit; }
-    .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-    .btn { appearance:none; border:0; padding:10px 14px; border-radius:10px; background:#121a7a; color:white; cursor:pointer; font-weight:600; box-shadow: 0 6px 16px rgba(18,26,122,.25); }
-    .btn.secondary { background:#eef1ff; color:#121a7a; box-shadow:none; }
-    .btn:disabled { opacity:.45; cursor:not-allowed; }
-    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .muted { color:#6b7280; font-size:12px; }
-    canvas { width: 100%; height: auto; background:white; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb; }
-    .status { font-size:12px; padding:6px 10px; border-radius: 8px; background:#f0f7ff; color:#0b4aa7; display:inline-block; }
-    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    :root { --bg:#f6f7fb; --card:#ffffff; --text:#0f172a; --muted:#64748b; --accent:#2f46ff; --border:#e5e7eb; --shadow:0 10px 30px rgba(15,23,42,.08); }
+    [data-theme="dark"]{ --bg:#0b1020; --card:#0f152b; --text:#eef2ff; --muted:#9aa3b2; --border:#1e294a; --shadow:0 10px 30px rgba(0,0,0,.6); }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header{ position:sticky; top:0; z-index:20; background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%); color:white; padding:14px 18px; box-shadow:var(--shadow); }
+    header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; }
+    h1{ font-size:18px; margin:0; letter-spacing:.2px; font-weight:700; }
+
+    main{ max-width:1200px; margin:16px auto; padding:0 16px; display:grid; grid-template-columns:1fr 1.1fr; gap:16px; }
+    @media (max-width: 1024px){ main{ grid-template-columns:1fr; } }
+
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; }
+    .card h2{ margin:0 0 12px; font-size:16px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input[type="file"], textarea, input[type="number"], input[type="text"], select{ width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:inherit; }
+    textarea{ min-height:110px; resize:vertical; font-family:inherit; }
+    .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btn{ appearance:none; border:0; padding:12px 14px; border-radius:12px; background:var(--accent); color:white; cursor:pointer; font-weight:700; letter-spacing:.2px; box-shadow:0 8px 18px rgba(47,70,255,.25); }
+    .btn.secondary{ background:transparent; color:var(--accent); border:1px solid var(--accent); box-shadow:none; }
+    .btn:disabled{ opacity:.45; cursor:not-allowed; }
+    .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
+    [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
+
+    .steps{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .step{ padding:6px 10px; border-radius:999px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.5; display:flex; align-items:center; gap:6px; }
+    .step .tick{ width:16px; height:16px; border-radius:50%; background:#22c55e; color:white; display:none; align-items:center; justify-content:center; font-size:12px; }
+    .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
+    .step.done{ opacity:1; background:#bbf7d0; color:#064e3b; }
+    .step.done .tick{ display:flex; }
+
+    .previewWrap{ position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); background: repeating-conic-gradient(#0000 0 90deg, #f3f4f6 0 180deg) 50%/20px 20px; }
+    [data-theme="dark"] .previewWrap{ background: repeating-conic-gradient(#0000 0 90deg, #111827 0 180deg) 50%/20px 20px; }
+    canvas{ display:block; width:100%; height:auto; background:white; }
+
+    .zoombar{ display:flex; align-items:center; gap:10px; margin-top:10px; color:var(--muted); }
+    input[type="range"]{ width:220px; }
+
+    .hidden{ display:none !important; }
+    .error{ color:#b91c1c; font-size:12px; margin-top:6px; }
+
+    @media (max-width:520px){ .steps{ gap:6px; } .step{ font-size:11px; padding:6px 8px; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>C5 Envelope Generator — PDF + Live Preview</h1>
+    <div class="row">
+      <h1>✉️ C5 Envelope Creator — Wizard</h1>
+      <div class="controls">
+        <button id="themeToggle" class="btn secondary" title="Toggle dark mode">Toggle theme</button>
+      </div>
+    </div>
   </header>
+
   <main>
-    <section class="panel">
-      <h2>1) Upload & Settings</h2>
-      <label>Excel (.xlsx) — Column 1 = Full Name, Columns 2+ = Address lines</label>
-      <input id="fileXlsx" type="file" accept=".xlsx" />
+    <!-- Wizard Column -->
+    <section class="card" id="wizard">
+      <div class="steps">
+        <div class="step" id="s1"><span class="tick">✓</span> 1. Mode</div>
+        <div class="step" id="s2"><span class="tick">✓</span> 2. Data</div>
+        <div class="step" id="s3"><span class="tick">✓</span> 3. Font</div>
+        <div class="step" id="s4"><span class="tick">✓</span> 4. Return</div>
+        <div class="step" id="s5"><span class="tick">✓</span> 5. Options</div>
+        <div class="step" id="s6"><span class="tick">✓</span> 6. Preview & PDF</div>
+      </div>
 
-      <label>Font (.ttf) — e.g., ShadowsIntoLight-Regular.ttf</label>
-      <input id="fileTtf" type="file" accept=".ttf" />
-
-      <div class="row">
-        <div>
-          <label>Recipient font size (pt)</label>
-          <input id="fsRecipient" type="number" value="24" min="8" max="72" />
+      <!-- Step 1: Mode -->
+      <div id="step1">
+        <h2>Single address or multiple addresses?</h2>
+        <label><input type="radio" name="mode" id="modeSingle" /> Single address</label>
+        <label><input type="radio" name="mode" id="modeMulti" /> Multiple addresses (upload a spreadsheet)</label>
+        <div id="singleWrap" class="hidden" style="margin-top:10px;">
+          <label>Enter the recipient name and address (one line per row)</label>
+          <textarea id="singleAddress" placeholder="Full Name\nAddress line 1\nAddress line 2\nTown/City\nPostcode\nCountry"></textarea>
         </div>
-        <div>
-          <label>Return font size (pt)</label>
-          <input id="fsReturn" type="number" value="10" min="6" max="24" />
+        <div id="errMode" class="error hidden"></div>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="nextMode" class="btn" disabled>Next ▷</button>
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label>Has header row?</label>
-          <select id="hasHeader"><option value="yes">Yes</option><option value="no">No</option></select>
-        </div>
-        <div>
-          <label>Ink colour (return address)</label>
-          <input id="ink" type="text" value="#00004D" />
+      <!-- Step 2: Data (multi only) -->
+      <div id="step2" class="hidden">
+        <h2>Upload your Excel (.xlsx)</h2>
+        <p class="muted" style="margin-top:-6px">Column 1 = Full Name, Columns 2+ = Address lines</p>
+        <input id="fileXlsx" type="file" accept=".xlsx" />
+        <label style="margin-top:12px">Has header row?</label>
+        <select id="hasHeader"><option value="yes">Yes</option><option value="no">No</option></select>
+        <div id="err1" class="error hidden"></div>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="next1" class="btn" disabled>Next ▷</button>
         </div>
       </div>
 
-      <label>Return address (each line on its own row)</label>
-      <textarea id="returnBlock">Return Address:
-Mrs Rachel Peabody
-105 Bramhall Lane South
-Bramhall, Cheshire, SK7 2EE, UK</textarea>
-
-      <div class="toolbar" style="margin-top:12px;">
-        <button id="btnPrev" class="btn secondary" disabled>◀ Prev</button>
-        <button id="btnNext" class="btn secondary" disabled>Next ▶</button>
-        <span class="muted" id="counter">No rows loaded</span>
+      <!-- Step 3: Font -->
+      <div id="step3" class="hidden">
+        <h2>Font</h2>
+        <label><input type="checkbox" id="useCustomFont" /> Use a custom TTF (upload below)</label>
+        <input id="fileTtf" type="file" accept=".ttf" class="hidden" />
+        <p class="muted">If unchecked, the PDF uses built‑in Helvetica and the preview uses your system font.</p>
+        <div id="err2" class="error hidden"></div>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="back2" class="btn secondary">◁ Back</button>
+          <button id="next2" class="btn">Next ▷</button>
+        </div>
       </div>
 
-      <div class="toolbar" style="margin-top:12px;">
-        <button id="btnGenerate" class="btn" disabled>Generate PDF</button>
-        <span class="status" id="status">Waiting for files…</span>
+      <!-- Step 4: Return (optional) -->
+      <div id="step4" class="hidden">
+        <h2>Return Address (top‑right, optional)</h2>
+        <label><input type="checkbox" id="useReturn" /> Print a return address at the top right</label>
+        <div id="returnBlockWrap" class="hidden">
+          <label>Return address (each line on its own row)</label>
+          <textarea id="returnBlock" placeholder="Return Address:\nYour Name\nStreet\nTown, County, POSTCODE, Country"></textarea>
+          <label><input type="checkbox" id="rememberReturn" /> Remember this return address on this device</label>
+        </div>
+        <div id="err3" class="error hidden"></div>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="back3" class="btn secondary">◁ Back</button>
+          <button id="next3" class="btn">Next ▷</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Options -->
+      <div id="step5" class="hidden">
+        <h2>Print Options</h2>
+        <div class="row2">
+          <div>
+            <label>Recipient font size (pt)</label>
+            <input id="fsRecipient" type="number" value="24" min="8" max="72" />
+          </div>
+          <div>
+            <label>Return font size (pt)</label>
+            <input id="fsReturn" type="number" value="10" min="6" max="24" />
+          </div>
+        </div>
+        <label style="margin-top:10px">Ink colour for return address</label>
+        <select id="inkPreset">
+          <option value="black" selected>Black (default)</option>
+          <option value="blueblack">Blue‑Black (#00004D)</option>
+          <option value="blue">Blue</option>
+          <option value="red">Red</option>
+          <option value="orange">Orange</option>
+        </select>
+        <div id="err4" class="error hidden"></div>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="back4" class="btn secondary">◁ Back</button>
+          <button id="next4" class="btn">Next ▷</button>
+        </div>
+      </div>
+
+      <!-- Step 6: Preview & PDF -->
+      <div id="step6" class="hidden">
+        <h2>Preview & PDF</h2>
+        <div class="toolbar" style="margin-bottom:10px;">
+          <span class="status" id="status">Ready.</span>
+          <span id="counter" class="muted" style="margin-left:auto"></span>
+        </div>
+        <div class="toolbar" style="margin-bottom:10px;">
+          <button id="btnPrev" class="btn secondary" disabled>◀ Prev</button>
+          <button id="btnNext" class="btn secondary" disabled>Next ▶</button>
+          <button id="btnGenerate" class="btn" disabled>⤓ Generate PDF</button>
+        </div>
+        <div class="zoombar">
+          <span>Zoom</span>
+          <input id="zoom" type="range" min="60" max="160" value="100" />
+          <span id="zoomLabel">100%</span>
+        </div>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>2) Live Preview (C5 landscape, 229 × 162 mm)</h2>
-      <canvas id="preview" width="2288" height="1620"></canvas>
-      <div class="muted" style="margin-top:8px;">Tip: Zoom your browser to check fine alignment. Preview uses your uploaded TTF as a webfont so what you see matches the PDF.</div>
+    <!-- Preview Column (hidden until step 6) -->
+    <section class="card hidden" id="previewCard">
+      <h2>Live Preview (C5 landscape, 229 × 162 mm)</h2>
+      <div class="previewWrap" id="previewWrap">
+        <canvas id="preview" width="2288" height="1620"></canvas>
+      </div>
+      <div class="muted" style="margin-top:8px;">Default font is built‑in Helvetica. Colour applies to the <b>return address</b>; recipient prints in black.</div>
     </section>
   </main>
 
   <!-- Libraries -->
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script id="fontkit-script" src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js"></script>
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js" id="fontkit-script"></script>
 
   <script>
-    // --- Script loader + fontkit fallback ---
-    function loadScript(url){
-      return new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = url; s.async = true; s.onload = () => resolve(); s.onerror = () => reject(new Error('Failed to load ' + url));
-        document.head.appendChild(s);
-      });
-    }
-    async function ensureFontkitLoaded(){
-      let fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
-      if(fk) return fk;
-      const fallbacks = [
-        'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js',
-        'https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js'
-      ];
-      for(const url of fallbacks){
-        try { await loadScript(url); } catch(e) { /* continue */ }
-        fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
-        if(fk) return fk;
-      }
-      throw new Error('fontkit not loaded — check network/caching and script tags.');
-    }
-
-    // --- Geometry helpers (mm/in)
-    const MM_PER_IN = 25.4;
-    const PT_PER_IN = 72;
-    const pxPerMM = 4.0; // Canvas scale (visual only). 229mm -> ~916px; we upscale for crisper preview
-
+    // ===== Helpers & state =====
+    const MM_PER_IN = 25.4; const PT_PER_IN = 72; let pxPerMM = 4.0;
+    const ENVELOPE_W_MM = 229, ENVELOPE_H_MM = 162; // C5
+    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block
+    const RET_X_IN = 0.5, RET_Y_IN = 0.5; // return margin from right/top
     function mmToPx(mm){ return Math.round(mm * pxPerMM); }
     function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
     function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
+    function parseColourName(name){ switch(name){ case 'blueblack': return {r:0,g:0,b:77}; case 'blue': return {r:0,g:87,b:255}; case 'red': return {r:227,g:27,b:35}; case 'orange': return {r:249,g:115,b:22}; case 'black': default: return {r:0,g:0,b:0}; } }
 
-    // C5 landscape
-    const ENVELOPE_W_MM = 229;
-    const ENVELOPE_H_MM = 162;
-
-    // Positions per spec
-    const REC_X_IN = 2;   // 2 inches from left
-    const REC_TOP_IN = 3; // 3 inches from top
-    const RET_X_IN = 0.5; // 0.5 inch left margin
-    const RET_Y_IN = 0.5; // 0.5 inch top margin
-
-    const $ = sel => document.querySelector(sel);
+    const $ = s => document.querySelector(s);
     const els = {
-      fileXlsx: $('#fileXlsx'),
-      fileTtf: $('#fileTtf'),
-      fsRecipient: $('#fsRecipient'),
-      fsReturn: $('#fsReturn'),
-      hasHeader: $('#hasHeader'),
-      ink: $('#ink'),
-      returnBlock: $('#returnBlock'),
-      btnPrev: $('#btnPrev'),
-      btnNext: $('#btnNext'),
-      btnGenerate: $('#btnGenerate'),
-      status: $('#status'),
-      counter: $('#counter'),
-      canvas: $('#preview'),
+      steps:[ $('#s1'),$('#s2'),$('#s3'),$('#s4'),$('#s5'),$('#s6') ],
+      step1:$('#step1'), step2:$('#step2'), step3:$('#step3'), step4:$('#step4'), step5:$('#step5'), step6:$('#step6'),
+      // mode
+      modeSingle:$('#modeSingle'), modeMulti:$('#modeMulti'), singleWrap:$('#singleWrap'), singleAddress:$('#singleAddress'), nextMode:$('#nextMode'), errMode:$('#errMode'),
+      // data multi
+      fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'),
+      // font
+      useCustomFont:$('#useCustomFont'), fileTtf:$('#fileTtf'), back2:$('#back2'), next2:$('#next2'), err2:$('#err2'),
+      // return
+      useReturn:$('#useReturn'), returnBlockWrap:$('#returnBlockWrap'), returnBlock:$('#returnBlock'), rememberReturn:$('#rememberReturn'), back3:$('#back3'), next3:$('#next3'), err3:$('#err3'),
+      // options
+      fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), next4:$('#next4'), err4:$('#err4'),
+      // preview/pdf
+      status:$('#status'), counter:$('#counter'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'), zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
+      // canvas
+      wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'),
+      // theme
+      themeToggle:$('#themeToggle')
     };
 
     const ctx = els.canvas.getContext('2d');
-    const CANVAS_W = mmToPx(ENVELOPE_W_MM);
-    const CANVAS_H = mmToPx(ENVELOPE_H_MM);
-    els.canvas.width = CANVAS_W; els.canvas.height = CANVAS_H;
+    function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); }
+    resizeCanvas();
 
-    let rows = []; // [{name, lines[]}, ...]
-    let idx = 0;
-    let ttfBytes = null;
-    let fontName = null; // CSS font-family name for preview
+    let rows = []; let idx = 0; let mode = null; // 'single' | 'multi'
+    let ttfBytes = null; let fontName = null; let customFontLoaded = false;
+
+    function setStep(n){
+      const cards=[els.step1,els.step2,els.step3,els.step4,els.step5,els.step6];
+      cards.forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
+      els.steps.forEach((s,i)=>{ s.classList.remove('active','done'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
+      els.previewCard.classList.toggle('hidden', n!==6);
+    }
 
     function setStatus(msg){ els.status.textContent = msg; }
+    function updateButtons(){ const ready = rows.length>0; els.btnGenerate.disabled = !ready; els.btnPrev.disabled = idx<=0; els.btnNext.disabled = idx>=rows.length-1; els.counter.textContent = ready?`Preview ${idx+1}/${rows.length}`:''; }
 
-    function updateButtons(){
-      const ready = rows.length > 0 && !!ttfBytes;
-      els.btnGenerate.disabled = !ready;
-      els.btnPrev.disabled = idx <= 0;
-      els.btnNext.disabled = idx >= rows.length - 1;
-      els.counter.textContent = ready ? `Recipient ${idx+1} of ${rows.length}` : 'No rows loaded';
-    }
+    // Theme
+    els.themeToggle.addEventListener('click', ()=>{ const cur=document.documentElement.getAttribute('data-theme')||'light'; document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light'); });
 
-    // Load TTF as a blob + dynamic webfont for preview
-    async function loadTTF(file){
-      ttfBytes = await file.arrayBuffer();
-      const blob = new Blob([ttfBytes], {type: 'font/ttf'});
-      const url = URL.createObjectURL(blob);
-      fontName = `UploadedFont_${Math.random().toString(36).slice(2)}`;
-      const face = new FontFace(fontName, `url(${url})`);
-      await face.load();
-      document.fonts.add(face);
-      setStatus('Font loaded.');
-    }
+    // Zoom
+    function applyZoom(){ const z=parseInt(els.zoom.value,10)/100; els.wrap.style.transform=`scale(${z})`; els.wrap.style.transformOrigin='top left'; els.zoomLabel.textContent=`${Math.round(z*100)}%`; }
+    els.zoom.addEventListener('input', applyZoom);
 
-    // Parse XLSX -> rows
-    async function loadXlsx(file){
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, {type: 'array'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const a = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false}); // array-of-arrays
-      const hasHeader = els.hasHeader.value === 'yes';
-      const start = hasHeader ? 1 : 0;
-      rows = [];
-      for(let r = start; r < a.length; r++){
-        const row = a[r] || [];
-        const name = (row[0] || '').toString().trim();
-        const addr = row.slice(1).map(v => (v||'').toString().trim()).filter(Boolean);
-        if(!name && addr.length===0) continue; // skip empty rows
-        rows.push({ name, lines: addr });
-      }
-      idx = 0;
-      setStatus(`Loaded ${rows.length} recipients from Excel.`);
-      updateButtons();
-      drawPreview();
-    }
+    // ===== Step 1: Mode =====
+    function validateMode(){ if(els.modeSingle.checked){ mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = !els.singleAddress.value.trim(); } else if(els.modeMulti.checked){ mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false; } else { els.nextMode.disabled = true; } }
+    els.modeSingle.addEventListener('change', validateMode); els.modeMulti.addEventListener('change', validateMode); els.singleAddress.addEventListener('input', validateMode);
+    els.nextMode.addEventListener('click', ()=>{
+      if(mode==='single'){
+        const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
+        if(lines.length===0){ els.errMode.textContent='Please enter the address.'; els.errMode.classList.remove('hidden'); return; }
+        const name = lines.shift(); rows=[{name, lines}]; setStep(3);
+      } else if(mode==='multi'){ setStep(2); }
+    });
 
-    function parseColour(hex){
-      const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
-      if(!m) return {r:0,g:0,b:0};
-      return { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) };
+    // ===== Step 2: Data upload (multi) =====
+    els.fileXlsx.addEventListener('change', async e=>{
+      els.err1.classList.add('hidden'); els.next1.disabled = true; const file=e.target.files && e.target.files[0]; if(!file) return;
+      try{
+        const buf = await file.arrayBuffer(); const wb = XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+        const a = XLSX.utils.sheet_to_json(ws,{header:1,raw:false}); const start=(els.hasHeader.value==='yes')?1:0; rows=[];
+        for(let r=start;r<a.length;r++){ const row=a[r]||[]; const name=(row[0]||'').toString().trim(); const addr=row.slice(1).map(v=>(v||'').toString().trim()).filter(Boolean); if(!name && addr.length===0) continue; rows.push({name,lines:addr}); }
+        if(rows.length>0){ els.next1.disabled=false; els.steps[1].classList.add('done'); } else { els.err1.textContent='No rows found. Check header toggle.'; els.err1.classList.remove('hidden'); }
+      }catch(err){ els.err1.textContent='Could not read Excel file.'; els.err1.classList.remove('hidden'); }
+    });
+    els.hasHeader.addEventListener('change', ()=>{ els.fileXlsx.dispatchEvent(new Event('change')); });
+    els.next1.addEventListener('click', ()=> setStep(3));
+
+    // ===== Step 3: Font =====
+    els.useCustomFont.addEventListener('change', ()=>{ const on=els.useCustomFont.checked; els.fileTtf.classList.toggle('hidden', !on); if(!on){ ttfBytes=null; fontName=null; customFontLoaded=false; } });
+    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{ ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`; const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face); try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){} customFontLoaded=true; setStatus('Custom font loaded for preview.'); }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
+    els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
+    els.next2.addEventListener('click', ()=>{ if(els.useCustomFont.checked && !customFontLoaded){ els.err2.textContent='Please upload a TTF or untick the option.'; els.err2.classList.remove('hidden'); return; } els.err2.classList.add('hidden'); setStep(4); });
+
+    // ===== Step 4: Return =====
+    try{ const saved=localStorage.getItem('envelope_return_v1'); if(saved){ els.returnBlock.value=saved; } const savedUse=localStorage.getItem('envelope_useReturn_v1'); if(savedUse==='1'){ els.useReturn.checked=true; els.returnBlockWrap.classList.remove('hidden'); } }catch(e){}
+    els.useReturn.addEventListener('change', ()=>{ const on=els.useReturn.checked; els.returnBlockWrap.classList.toggle('hidden', !on); });
+    els.rememberReturn.addEventListener('change', ()=>{ if(els.rememberReturn.checked && els.returnBlock.value.trim()){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0'); }catch(e){} } });
+    els.returnBlock.addEventListener('input', ()=>{ if(els.rememberReturn.checked){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(e){} } });
+    els.back3.addEventListener('click', ()=> setStep(3));
+    els.next3.addEventListener('click', ()=>{ if(els.useReturn.checked && !els.returnBlock.value.trim()){ els.err3.textContent='Please enter the return address or untick the option.'; els.err3.classList.remove('hidden'); return; } els.err3.classList.add('hidden'); setStep(5); });
+
+    // ===== Step 5: Options =====
+    els.back4.addEventListener('click', ()=> setStep(4));
+    els.next4.addEventListener('click', ()=>{ setStep(6); drawPreview(); updateButtons(); applyZoom(); });
+
+    // ===== Preview drawing =====
+    function drawStamp(ctx,W,H){
+      // simple British-style stamp (preview only)
+      const margin = inToPx(RET_X_IN);
+      const stampW = mmToPx(30), stampH = mmToPx(36);
+      const x = W - margin - stampW; const y = inToPx(RET_Y_IN) + 2;
+      ctx.save(); ctx.strokeStyle = '#a3a3a3'; ctx.lineWidth = 2; ctx.strokeRect(x,y,stampW,stampH);
+      ctx.fillStyle = '#a3a3a3'; const cx=x+stampW/2, cy=y+stampH/2; ctx.beginPath(); ctx.moveTo(cx-18, cy+8); ctx.lineTo(cx-10, cy-6); ctx.lineTo(cx, cy+2); ctx.lineTo(cx+10, cy-6); ctx.lineTo(cx+18, cy+8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#d4d4d4'; for(let i=0;i<12;i++){ ctx.beginPath(); ctx.arc(x+(i+0.5)*(stampW/12), y, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+(i+0.5)*(stampW/12), y+stampH, 2, 0, Math.PI*2); ctx.fill(); }
+      for(let i=0;i<16;i++){ ctx.beginPath(); ctx.arc(x, y+(i+0.5)*(stampH/16), 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+stampW, y+(i+0.5)*(stampH/16), 2, 0, Math.PI*2); ctx.fill(); }
+      ctx.restore();
     }
 
     function drawPreview(){
-      // Clear
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
-      // light border
-      ctx.strokeStyle = '#e5e7eb';
-      ctx.strokeRect(0.5,0.5,CANVAS_W-1,CANVAS_H-1);
+      const W=els.canvas.width, H=els.canvas.height; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
+      if(rows.length===0){ ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload or type an address to continue…',16,32); return; }
 
-      if(!rows.length || !fontName){
-        ctx.fillStyle = '#999';
-        ctx.font = '16px system-ui';
-        ctx.fillText('Upload Excel + TTF to preview…', 16, 32);
-        return;
+      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
+      const previewFont = customFontLoaded ? `${nameFs}px ${fontName}, Arial, sans-serif` : `${nameFs}px Arial, sans-serif`;
+      const previewFontReturn = customFontLoaded ? `${retFs}px ${fontName}, Arial, sans-serif` : `${retFs}px Arial, sans-serif`;
+
+      // Return block
+      const ink = parseColourName(els.inkPreset.value);
+      if(els.useReturn.checked && els.returnBlock.value.trim()){
+        ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='right';
+        const retRight = W - inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+        for(const line of lines){ ctx.fillText(line, retRight, y); y += Math.round(retFs*1.2); } ctx.textAlign='left';
       }
 
-      const nameFs = Number(els.fsRecipient.value)||24;
-      const retFs = Number(els.fsReturn.value)||10;
-      const {r,g,b} = parseColour(els.ink.value||'#00004D');
+      // Recipient (black)
+      ctx.fillStyle='#000'; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs; const rcp=rows[idx];
+      if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); }
+      for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); }
 
-      // Return address block (ink colour)
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.font = `${retFs}px ${fontName}, Arial, sans-serif`;
-      const retX = inToPx(RET_X_IN);
-      let retY = inToPx(RET_Y_IN); // canvas origin at top-left; we move down by line height
-      // We want top margin, so be careful with y positions: draw text baseline at +retFs
-      retY += retFs;
-      const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
-      for(const line of lines){
-        ctx.fillText(line, retX, retY);
-        retY += Math.round(retFs * 1.2);
-      }
-
-      // Recipient block in uploaded font (black)
-      ctx.fillStyle = '#000';
-      ctx.font = `${nameFs}px ${fontName}, Arial, sans-serif`;
-      const recX = inToPx(REC_X_IN);
-      let recY = inToPx(REC_TOP_IN) + nameFs; // place baseline correctly under top offset
-      const rcp = rows[idx];
-      if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs * 1.1); }
-      for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs * 1.1); }
-
-      // Footer counter
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '12px system-ui';
-      ctx.fillText(`C5 ${ENVELOPE_W_MM}×${ENVELOPE_H_MM} mm — Preview ${idx+1}/${rows.length}`, 12, CANVAS_H-12);
+      drawStamp(ctx,W,H);
+      els.counter.textContent = `Preview ${idx+1}/${rows.length}`;
     }
 
-    // Generate PDF using pdf-lib with embedded TTF
+    els.btnPrev.addEventListener('click', ()=>{ if(idx>0){ idx--; drawPreview(); updateButtons(); } });
+    els.btnNext.addEventListener('click', ()=>{ if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); } });
+
+    async function ensureFontkitLoaded(){ let fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk; const urls=['https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js','https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js']; for(const u of urls){ await new Promise(res=>{ const s=document.createElement('script'); s.src=u; s.onload=res; document.head.appendChild(s); }); fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk; } throw new Error('fontkit not loaded'); }
+
     async function generatePDF(){
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const pdfDoc = await PDFDocument.create();
-      // Ensure fontkit is available (with CDN fallbacks)
-      const fk = await ensureFontkitLoaded();
-      pdfDoc.registerFontkit(fk);
-      // Ensure Uint8Array for embedFont
-        const fontBytes = (ttfBytes instanceof ArrayBuffer) ? new Uint8Array(ttfBytes) : ttfBytes;
-        const customFont = await pdfDoc.embedFont(fontBytes);
+      const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdfDoc = await PDFDocument.create();
+      let pdfFont = null; let useCustom=(els.useCustomFont.checked && ttfBytes);
+      if(useCustom){ const fk=await ensureFontkitLoaded(); pdfDoc.registerFontkit(fk); const fontBytes=(ttfBytes instanceof ArrayBuffer)?new Uint8Array(ttfBytes):ttfBytes; pdfFont=await pdfDoc.embedFont(fontBytes); } else { pdfFont=await pdfDoc.embedFont(StandardFonts.Helvetica); }
 
-      const pageWidth = mmToPt(ENVELOPE_W_MM);
-      const pageHeight = mmToPt(ENVELOPE_H_MM);
-      const recXpt = REC_X_IN * PT_PER_IN; // 2 in
-      const recTopPt = REC_TOP_IN * PT_PER_IN; // 3 in
-      const retXpt = RET_X_IN * PT_PER_IN; // 0.5 in
-      const retYtop = pageHeight - (RET_Y_IN * PT_PER_IN); // from top
+      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM); const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN; const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
+      const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10; const ink=parseColourName(els.inkPreset.value);
+      const retLines = (els.useReturn.checked && els.returnBlock.value.trim()) ? els.returnBlock.value.replace(/\r/g,'').split('\n') : [];
 
-      const nameFs = Number(els.fsRecipient.value)||24;
-      const retFs = Number(els.fsReturn.value)||10;
-      const ink = parseColour(els.ink.value||'#00004D');
-
-      const retLines = els.returnBlock.value.replace(/\r/g,'').split('\n');
-
-      for(const r of rows){
-        const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
-        // Return address (colour ink)
-        let y = retYtop - retFs; // text draws from baseline
-        for(const line of retLines){
-          page.drawText(line, { x: retXpt, y, size: retFs, font: customFont, color: rgb(ink.r/255, ink.g/255, ink.b/255) });
-          y -= retFs * 1.2;
-        }
-
-        // Recipient name + address (black)
-        let yRec = pageHeight - recTopPt - nameFs; // from top
-        if(r.name){
-          page.drawText(r.name, { x: recXpt, y: yRec, size: nameFs, font: customFont, color: rgb(0,0,0) });
-          yRec -= nameFs * 1.1;
-        }
-        for(const line of r.lines){
-          page.drawText(line, { x: recXpt, y: yRec, size: nameFs, font: customFont, color: rgb(0,0,0) });
-          yRec -= nameFs * 1.1;
-        }
+      for(const r of rows){ const page = pdfDoc.addPage([pageWidth,pageHeight]); if(retLines.length){ let y=pageHeight - retTopPt - retFs; for(const line of retLines){ const w = pdfFont.widthOfTextAtSize(line, retFs); const x = pageWidth - retMarginX - w; page.drawText(line,{x,y,size:retFs,font:pdfFont,color:rgb(ink.r/255,ink.g/255,ink.b/255)}); y -= retFs*1.2; } }
+        let yRec = pageHeight - recTopPt - nameFs; if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:rgb(0,0,0)}); yRec -= nameFs*1.1; }
+        for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:rgb(0,0,0)}); yRec -= nameFs*1.1; }
       }
 
-      const bytes = await pdfDoc.save();
-      const blob = new Blob([bytes], {type: 'application/pdf'});
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url; a.download = 'C5_Envelopes.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      const bytes=await pdfDoc.save(); const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
 
-    // Event handlers
-    els.fileTtf.addEventListener('change', async e => {
-      if(e.target.files && e.target.files[0]){
-        setStatus('Loading font…');
-        await loadTTF(e.target.files[0]);
-        drawPreview();
-        updateButtons();
-      }
-    });
+    // Hook up Step 6
+    els.btnGenerate.addEventListener('click', async()=>{ els.btnGenerate.disabled=true; setStatus('Building PDF…'); try{ await generatePDF(); setStatus('PDF downloaded.'); } catch(err){ console.error(err); setStatus('Error: '+err.message); } finally{ els.btnGenerate.disabled=false; } });
 
-    els.fileXlsx.addEventListener('change', async e => {
-      if(e.target.files && e.target.files[0]){
-        setStatus('Reading Excel…');
-        await loadXlsx(e.target.files[0]);
-      }
-    });
+    // Redraw on options change (after step 6)
+    ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{ const el=$('#'+id); if(el){ el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); }});
 
-    els.fsRecipient.addEventListener('input', drawPreview);
-    els.fsReturn.addEventListener('input', drawPreview);
-    els.hasHeader.addEventListener('change', () => {
-      if(els.fileXlsx.files[0]) loadXlsx(els.fileXlsx.files[0]);
-    });
-    els.ink.addEventListener('input', drawPreview);
-    els.returnBlock.addEventListener('input', drawPreview);
-
-    els.btnPrev.addEventListener('click', () => { if(idx>0){ idx--; drawPreview(); updateButtons(); }});
-    els.btnNext.addEventListener('click', () => { if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); }});
-    els.btnGenerate.addEventListener('click', async () => {
-      els.btnGenerate.disabled = true; setStatus('Building PDF…');
-      try { await generatePDF(); setStatus('PDF downloaded.'); }
-      catch(err){ console.error(err); setStatus('Error: ' + err.message); }
-      finally { updateButtons(); }
-    });
-
-    // Keyboard shortcuts for prev/next
-    window.addEventListener('keydown', (e) => {
-      if(e.key === 'ArrowLeft'){ els.btnPrev.click(); }
-      if(e.key === 'ArrowRight'){ els.btnNext.click(); }
-    });
-
-    setStatus('Waiting for files…');
+    // Init
+    setStep(1);
   </script>
 </body>
 </html>
