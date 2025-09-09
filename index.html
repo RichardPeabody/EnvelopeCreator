@@ -239,9 +239,13 @@ Bramhall, Cheshire, SK7 2EE, UK</textarea>
     async function generatePDF(){
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
       const pdfDoc = await PDFDocument.create();
-      // Register fontkit so we can embed the uploaded TTF
-      try { pdfDoc.registerFontkit(window.fontkit); } catch(e) { console.warn('fontkit registration warning:', e); }
-      const customFont = await pdfDoc.embedFont(ttfBytes);
+      // Register fontkit so we can embed the uploaded TTF (handle UMD default export)
+      const fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
+      if(!fk){ throw new Error('fontkit not loaded — check the <script> tag for @pdf-lib/fontkit'); }
+      pdfDoc.registerFontkit(fk);
+      // Ensure Uint8Array for embedFont
+        const fontBytes = (ttfBytes instanceof ArrayBuffer) ? new Uint8Array(ttfBytes) : ttfBytes;
+        const customFont = await pdfDoc.embedFont(fontBytes);
 
       const pageWidth = mmToPt(ENVELOPE_W_MM);
       const pageHeight = mmToPt(ENVELOPE_H_MM);
