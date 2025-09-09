@@ -30,7 +30,6 @@
     .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
     [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
 
-    /* Equal-sized progress pills (simple grid) */
     .steps{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px; }
     .step{ padding:10px 8px; border-radius:12px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.75; text-align:center; user-select:none; }
     .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
@@ -49,6 +48,9 @@
     @media (max-width:520px){ .step{ font-size:11px; padding:8px 6px; } }
 
     .btn.review { border:2px dashed var(--accent); background:transparent; color:var(--accent); }
+    .muted{ color:var(--muted); font-size:12px; }
+    .drop{ margin-top:8px; padding:10px; border:1px dashed var(--border); border-radius:10px; text-align:center; }
+    .drop.drag{ border-color: var(--accent); background: rgba(47,70,255,.05); }
   </style>
 </head>
 <body>
@@ -90,9 +92,10 @@
 
       <!-- Step 2: Data (multi only) -->
       <div id="step2" class="hidden">
-        <h2>Upload your Excel (.xlsx)</h2>
+        <h2>Upload your data (.xlsx or .csv)</h2>
         <p class="muted" style="margin-top:-6px">Column 1 = Full Name, Columns 2+ = Address lines</p>
-        <input id="fileXlsx" type="file" accept=".xlsx" />
+        <input id="fileXlsx" type="file" accept=".xlsx,.csv" />
+        <div class="drop" id="drop">or drag a file here</div>
         <label style="margin-top:12px">Has header row?</label>
         <select id="hasHeader"><option value="yes">Yes</option><option value="no">No</option></select>
         <div id="err1" class="error hidden"></div>
@@ -201,30 +204,21 @@
     // ===== Helpers & state =====
     const MM_PER_IN = 25.4; const PT_PER_IN = 72; let pxPerMM = 4.0;
     const ENVELOPE_W_MM = 229, ENVELOPE_H_MM = 162; // C5
-    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block (inches from left/top)
+    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block
     const RET_X_IN = 0.5, RET_Y_IN = 0.5; // return margin from LEFT/top
 
     const $ = s => document.querySelector(s);
     const els = {
       steps:[ $('#s1'),$('#s2'),$('#s3'),$('#s4'),$('#s5'),$('#s6') ],
       step1:$('#step1'), step2:$('#step2'), step3:$('#step3'), step4:$('#step4'), step5:$('#step5'), step6:$('#step6'),
-      // mode
       modeSingle:$('#modeSingle'), modeMulti:$('#modeMulti'), singleWrap:$('#singleWrap'), singleAddress:$('#singleAddress'), nextMode:$('#nextMode'), errMode:$('#errMode'),
-      // data multi
-      fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'),
-      // font
+      fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'), drop:$('#drop'),
       useCustomFont:$('#useCustomFont'), fileTtf:$('#fileTtf'), back2:$('#back2'), next2:$('#next2'), err2:$('#err2'),
-      // return
       useReturn:$('#useReturn'), returnBlockWrap:$('#returnBlockWrap'), returnBlock:$('#returnBlock'), rememberReturn:$('#rememberReturn'), back3:$('#back3'), next3:$('#next3'), err3:$('#err3'),
-      // options
       fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), next4:$('#next4'), err4:$('#err4'),
-      // preview/pdf
-      status:$('#status'), counter:$('#counter'),
-      btnBackPreview:$('#btnBackPreview'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'),
+      status:$('#status'), counter:$('#counter'), btnBackPreview:$('#btnBackPreview'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'),
       zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
-      // canvas
       wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'),
-      // theme
       themeToggle:$('#themeToggle')
     };
 
@@ -232,48 +226,25 @@
     function mmToPx(mm){ return Math.round(mm * pxPerMM); }
     function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
     function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
-    function parseColourName(name){
-      switch(name){
-        case 'blueblack': return {r:0,g:0,b:77};
-        case 'blue': return {r:0,g:87,b:255};
-        case 'red': return {r:227,g:27,b:35};
-        case 'orange': return {r:249,g:115,b:22};
-        case 'black': default: return {r:0,g:0,b:0};
-      }
-    }
+    function parseColourName(name){ switch(name){ case 'blueblack': return {r:0,g:0,b:77}; case 'blue': return {r:0,g:87,b:255}; case 'red': return {r:227,g:27,b:35}; case 'orange': return {r:249,g:115,b:22}; case 'black': default: return {r:0,g:0,b:0}; } }
+    function setStatus(msg){ if(els.status) els.status.textContent = msg; }
 
     function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); }
     resizeCanvas();
 
-    let rows = []; let idx = 0; let mode = null; // 'single' | 'multi'
+    let rows = []; let idx = 0; let mode = null;
     let ttfBytes = null; let fontName = null; let customFontLoaded = false;
 
-    // ---- Keep rows in sync when in Single mode ----
-    function parseSingleIntoRows(){
-      const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
-      if(lines.length){ const name = lines.shift(); rows = [{ name, lines }]; }
-      else { rows = []; }
-      updateButtons();
-    }
-
-    function updateProgress(n){
-      els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
-    }
-
+    function updateProgress(n){ els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); }); }
     function setStep(n){
       const cards=[els.step1,els.step2,els.step3,els.step4,els.step5,els.step6];
       cards.forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
       updateProgress(n);
       els.previewCard.classList.toggle('hidden', n!==6);
       if(els.status) els.status.textContent = `On step ${n}`;
-      if(n===6){ // entering preview
-        if(mode==='single') parseSingleIntoRows();
-        drawPreview(); updateButtons();
-        if(rows.length===0){ setStatus('Add a single address or upload a sheet to enable PDF.'); }
-      }
+      if(n===6){ drawPreview(); updateButtons(); applyZoom(); }
     }
 
-    function setStatus(msg){ if(els.status) els.status.textContent = msg; }
     function updateButtons(){
       const ready = rows.length>0;
       els.btnGenerate.disabled = !ready;
@@ -283,63 +254,78 @@
     }
 
     // Theme
-    els.themeToggle.addEventListener('click', ()=>{
-      const cur=document.documentElement.getAttribute('data-theme')||'light';
-      document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light');
-    });
+    els.themeToggle.addEventListener('click', ()=>{ const cur=document.documentElement.getAttribute('data-theme')||'light'; document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light'); });
 
     // Zoom
     function applyZoom(){ const z=parseInt(els.zoom.value,10)/100; els.wrap.style.transform=`scale(${z})`; els.wrap.style.transformOrigin='top left'; els.zoomLabel.textContent=`${Math.round(z*100)}%`; }
     els.zoom.addEventListener('input', applyZoom);
 
-    // ===== Step 1: Mode =====
-    function validateMode(){
-      if(els.modeSingle.checked){
-        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = false; parseSingleIntoRows();
-      } else if(els.modeMulti.checked){
-        mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false; rows = []; updateButtons();
-      } else {
-        els.nextMode.disabled = true;
-      }
-    }
+    // Step 1
+    function parseSingleIntoRows(){ const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean); if(lines.length){ const name = lines.shift(); rows = [{ name, lines }]; } else { rows = []; } updateButtons(); }
+    function validateMode(){ if(els.modeSingle.checked){ mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled=false; parseSingleIntoRows(); } else if(els.modeMulti.checked){ mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled=false; rows=[]; updateButtons(); } else { els.nextMode.disabled=true; } }
     els.modeSingle.addEventListener('change', ()=>{ validateMode(); setStep(3); });
     els.modeMulti.addEventListener('change', ()=>{ validateMode(); setStep(2); });
-    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single'){ parseSingleIntoRows(); } });
-    els.nextMode.addEventListener('click', ()=>{
-      if(mode==='single'){
-        parseSingleIntoRows(); setStep(3);
-      } else if(mode==='multi'){
-        setStep(2);
-      } else {
-        setStatus('Select a mode to continue.');
-      }
-    });
+    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single') parseSingleIntoRows(); });
+    els.nextMode.addEventListener('click', ()=>{ if(mode==='single'){ parseSingleIntoRows(); setStep(3); } else if(mode==='multi'){ setStep(2); } else { setStatus('Select a mode to continue.'); } });
 
-    // ===== Step 2: Data upload (multi) =====
-    els.fileXlsx.addEventListener('change', async e=>{
-      els.err1.classList.add('hidden'); els.next1.disabled = true; const file=e.target.files && e.target.files[0]; if(!file) return;
+    // CSV parser (simple, handles quotes)
+    function parseCSV(text){
+      const rows=[]; let cur=''; let row=[]; let inQ=false;
+      for(let i=0;i<text.length;i++){ const ch=text[i]; if(ch==='\"'){ if(inQ && text[i+1]==='\"'){ cur+='\"'; i++; } else { inQ=!inQ; } } else if(ch===',' && !inQ){ row.push(cur); cur=''; } else if((ch==='\n'||ch==='\r') && !inQ){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; } else { cur+=ch; } }
+      if(cur.length>0 || row.length>0){ row.push(cur); rows.push(row); }
+      return rows;
+    }
+
+    async function handleDataFile(file){
+      els.err1.classList.add('hidden'); els.next1.disabled = true; if(!file) return;
       try{
-        const buf = await file.arrayBuffer(); const wb = XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
-        const a = XLSX.utils.sheet_to_json(ws,{header:1,raw:false}); const start=(els.hasHeader.value==='yes')?1:0; rows=[];
-        for(let r=start;r<a.length;r++){ const row=a[r]||[]; const name=(row[0]||'').toString().trim(); const addr=row.slice(1).map(v=>(v||'').toString().trim()).filter(Boolean); if(!name && addr.length===0) continue; rows.push({name,lines:addr}); }
-        if(rows.length>0){ els.next1.disabled=false; els.steps[1].classList.add('done'); } else { els.err1.textContent='No rows found. Check header toggle.'; els.err1.classList.remove('hidden'); }
-      }catch(err){ els.err1.textContent='Could not read Excel file.'; els.err1.classList.remove('hidden'); }
-    });
-    els.hasHeader.addEventListener('change', ()=>{ els.fileXlsx.dispatchEvent(new Event('change')); });
+        const name = (file.name||'').toLowerCase();
+        let arr=[];
+        if(name.endsWith('.csv')){
+          const txt = await file.text();
+          arr = parseCSV(txt);
+        } else if(name.endsWith('.xlsx')){
+          const buf = await file.arrayBuffer(); const wb = XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+          arr = XLSX.utils.sheet_to_json(ws,{header:1,raw:false});
+        } else {
+          throw new Error('Unsupported file type. Please upload .xlsx or .csv');
+        }
+
+        const start=(els.hasHeader.value==='yes')?1:0; rows=[]; idx=0;
+        for(let r=start;r<arr.length;r++){
+          const row=arr[r]||[];
+          const nameCell = (row[0]??'').toString().trim();
+          const addr = row.slice(1).map(v=>(v??'').toString().trim()).filter(Boolean);
+          if(!nameCell && addr.length===0) continue;
+          rows.push({name:nameCell, lines:addr});
+        }
+        if(rows.length>0){
+          els.next1.disabled=false; setStatus(`Loaded ${rows.length} address${rows.length>1?'es':''}.`);
+        } else {
+          els.err1.textContent='No rows found. Check header toggle or file format.'; els.err1.classList.remove('hidden');
+        }
+      }catch(err){
+        els.err1.textContent = (err && err.message) ? err.message : 'Could not read file.'; els.err1.classList.remove('hidden');
+      } finally { updateButtons(); }
+    }
+
+    els.fileXlsx.addEventListener('change', e=> handleDataFile(e.target.files && e.target.files[0]));
+    els.hasHeader.addEventListener('change', ()=>{ const f=els.fileXlsx.files && els.fileXlsx.files[0]; if(f) handleDataFile(f); });
+
+    // Drag-and-drop
+    ;['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
+    ;['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
+    els.drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files && e.dataTransfer.files[0]; if(f) handleDataFile(f); });
+
     els.next1.addEventListener('click', ()=> setStep(3));
 
-    // ===== Step 3: Font =====
+    // Step 3: Font
     els.useCustomFont.addEventListener('change', ()=>{ const on=els.useCustomFont.checked; els.fileTtf.classList.toggle('hidden', !on); if(!on){ ttfBytes=null; fontName=null; customFontLoaded=false; } });
-    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{
-      ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`;
-      const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face);
-      try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){}
-      customFontLoaded=true; setStatus('Custom font loaded for preview.');
-    }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
+    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{ ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`; const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face); try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){} customFontLoaded=true; setStatus('Custom font loaded for preview.'); }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
     els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
     els.next2.addEventListener('click', ()=>{ if(els.useCustomFont.checked && !customFontLoaded){ els.err2.textContent='Please upload a TTF or untick the option.'; els.err2.classList.remove('hidden'); return; } els.err2.classList.add('hidden'); setStep(4); });
 
-    // ===== Step 4: Return =====
+    // Step 4
     try{ const saved=localStorage.getItem('envelope_return_v1'); if(saved){ els.returnBlock.value=saved; } const savedUse=localStorage.getItem('envelope_useReturn_v1'); if(savedUse==='1'){ els.useReturn.checked=true; els.returnBlockWrap.classList.remove('hidden'); } }catch(e){}
     els.useReturn.addEventListener('change', ()=>{ const on=els.useReturn.checked; els.returnBlockWrap.classList.toggle('hidden', !on); });
     els.rememberReturn.addEventListener('change', ()=>{ if(els.rememberReturn.checked && els.returnBlock.value.trim()){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0'); }catch(e){} } });
@@ -347,23 +333,20 @@
     els.back3.addEventListener('click', ()=> setStep(3));
     els.next3.addEventListener('click', ()=>{ if(els.useReturn.checked && !els.returnBlock.value.trim()){ els.err3.textContent='Please enter the return address or untick the option.'; els.err3.classList.remove('hidden'); return; } els.err3.classList.add('hidden'); setStep(5); });
 
-    // ===== Step 5: Options =====
+    // Step 5
     els.back4.addEventListener('click', ()=> setStep(4));
-    els.next4.addEventListener('click', ()=>{ if(mode==='single'){ parseSingleIntoRows(); } setStep(6); drawPreview(); updateButtons(); applyZoom(); });
+    els.next4.addEventListener('click', ()=>{ setStep(6); });
 
-    // ===== UK-style Stamp (preview only) =====
+    // UK-style Stamp
     function drawUKStamp(ctx, W, H){
       const margin = inToPx(RET_X_IN);
       const stampW = mmToPx(30), stampH = mmToPx(36);
       const x = W - margin - stampW;
       const y = inToPx(RET_Y_IN) + 2;
-
       ctx.save();
-      ctx.fillStyle = '#c9102f'; // Royal Mail red
-      ctx.fillRect(x, y, stampW, stampH);
+      ctx.fillStyle = '#c9102f'; ctx.fillRect(x, y, stampW, stampH);
       const grad = ctx.createLinearGradient(x, y, x, y+stampH);
-      grad.addColorStop(0, 'rgba(255,255,255,0.15)');
-      grad.addColorStop(1, 'rgba(255,255,255,0.00)');
+      grad.addColorStop(0, 'rgba(255,255,255,0.15)'); grad.addColorStop(1, 'rgba(255,255,255,0.00)');
       ctx.fillStyle = grad; ctx.fillRect(x, y, stampW, stampH);
       ctx.fillStyle = '#fff'; const holesX = 13, holesY = 17;
       for(let i=0;i<holesX;i++){ const cx = x + (i+0.5)*stampW/holesX; ctx.beginPath(); ctx.arc(cx, y, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(cx, y+stampH, 2, 0, Math.PI*2); ctx.fill(); }
@@ -372,30 +355,23 @@
       ctx.restore();
     }
 
-    // ===== Preview drawing =====
     function drawPreview(){
       const W=els.canvas.width, H=els.canvas.height;
-      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
-
+      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
       const previewFont = customFontLoaded ? `${nameFs}px ${fontName}, Arial, sans-serif` : `${nameFs}px Arial, sans-serif`;
       const previewFontReturn = customFontLoaded ? `${retFs}px ${fontName}, Arial, sans-serif` : `${retFs}px Arial, sans-serif`;
       const ink = parseColourName(els.inkPreset.value);
-
-      // Return block (TOP-LEFT)
+      // Return (top-left)
       if(els.useReturn.checked && els.returnBlock.value.trim()){
         ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
-        const retLeft = Math.round(pxPerMM * 25.4 * RET_X_IN); let y = Math.round(pxPerMM * 25.4 * RET_Y_IN) + retFs;
-        const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+        const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
         for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retFs*1.2); }
       }
-
-      // Recipient (same ink colour)
-      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont;
-      const recX=Math.round(pxPerMM * 25.4 * REC_X_IN); let recY=Math.round(pxPerMM * 25.4 * REC_TOP_IN) + nameFs;
-      if(rows.length){ const rcp=rows[idx]; if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); } for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); } }
-      else { ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Type a single address (Step 1) or upload an .xlsx (Step 2) to continue…',16,32); }
-
+      // Recipient (same colour)
+      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs;
+      const rcp=rows[idx]; if(rcp){ if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); } for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); } }
+      else { ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload .xlsx/.csv (Step 2) to continue…',16,32); }
       drawUKStamp(ctx,W,H);
       els.counter.textContent = rows.length?`Preview ${idx+1}/${rows.length}`:'';
     }
@@ -421,57 +397,29 @@
       const pdfDoc = await PDFDocument.create();
       let pdfFont = null; let useCustom=(els.useCustomFont.checked && ttfBytes);
       if(useCustom){ const fk=await ensureFontkitLoaded(); pdfDoc.registerFontkit(fk); const fontBytes=(ttfBytes instanceof ArrayBuffer)?new Uint8Array(ttfBytes):ttfBytes; pdfFont=await pdfDoc.embedFont(fontBytes); } else { pdfFont=await pdfDoc.embedFont(StandardFonts.Helvetica); }
-
-      const pageWidth=(ENVELOPE_W_MM/25.4)*72, pageHeight=(ENVELOPE_H_MM/25.4)*72;
-      const recXpt=REC_X_IN*72, recTopPt=REC_TOP_IN*72;
-      const retMarginX=RET_X_IN*72, retTopPt=RET_Y_IN*72;
-
+      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM);
+      const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN;
+      const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
       const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10;
-      const ink=parseColourName(els.inkPreset.value);
-      const inkRGB = rgb(ink.r/255, ink.g/255, ink.b/255);
+      const ink=parseColourName(els.inkPreset.value); const inkRGB = rgb(ink.r/255, ink.g/255, ink.b/255);
       const retLines = (els.useReturn.checked && els.returnBlock.value.trim()) ? els.returnBlock.value.replace(/\r/g,'').split('\n') : [];
-
       for(const r of rows){
         const page = pdfDoc.addPage([pageWidth,pageHeight]);
-
-        // Return (TOP-LEFT)
-        if(retLines.length){
-          let y=pageHeight - retTopPt - retFs;
-          for(const line of retLines){
-            page.drawText(line,{x:retMarginX,y:y,size:retFs,font:pdfFont,color:inkRGB});
-            y -= retFs*1.2;
-          }
-        }
-
-        // Recipient (same ink colour)
-        let yRec = pageHeight - recTopPt - nameFs;
-        if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
+        if(retLines.length){ let y=pageHeight - retTopPt - retFs; for(const line of retLines){ page.drawText(line,{x:retMarginX,y,size:retFs,font:pdfFont,color:inkRGB}); y -= retFs*1.2; } }
+        let yRec = pageHeight - recTopPt - nameFs; if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
         for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
       }
-
-      const bytes=await pdfDoc.save();
-      const blob=new Blob([bytes],{type:'application/pdf'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-
+      const bytes=await pdfDoc.save(); const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       setStatus('PDF downloaded.');
     }
 
-    // Hook up Step 6
-    els.btnGenerate.addEventListener('click', async()=>{
-      els.btnGenerate.disabled=true; setStatus('Building PDF…');
-      try{ await generatePDF(); } catch(err){ console.error(err); setStatus('Error: '+err.message); }
-      finally{ els.btnGenerate.disabled=false; }
-    });
+    els.btnGenerate.addEventListener('click', async()=>{ els.btnGenerate.disabled=true; setStatus('Building PDF…'); try{ await generatePDF(); } catch(err){ console.error(err); setStatus('Error: '+err.message); } finally{ els.btnGenerate.disabled=false; } });
 
-    // Redraw on options change (after step 6)
+    // Live redraw updates
     ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{
       const el=$('#'+id);
-      if(el){
-        el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
-        el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
-      }
+      if(el){ el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); }
     });
 
     // Init
