@@ -30,7 +30,7 @@
     .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
     [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
 
-    /* Progress steps: equal widths */
+    /* Equal-sized progress pills (simple grid) */
     .steps{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px; }
     .step{ padding:10px 8px; border-radius:12px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.75; text-align:center; user-select:none; }
     .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
@@ -48,7 +48,6 @@
 
     @media (max-width:520px){ .step{ font-size:11px; padding:8px 6px; } }
 
-    /* Emphasise 'Review' buttons */
     .btn.review { border:2px dashed var(--accent); background:transparent; color:var(--accent); }
   </style>
 </head>
@@ -164,7 +163,6 @@
       <!-- Step 6: Preview & PDF -->
       <div id="step6" class="hidden">
         <h2>Preview & PDF</h2>
-        <!-- Control bar LEFT column (status + back + generate) -->
         <div class="toolbar" id="controlBar" style="margin-bottom:10px;">
           <button id="btnBackPreview" class="btn secondary" title="Go back to settings">◁ Back to settings</button>
           <span class="status" id="status">Ready.</span>
@@ -182,7 +180,6 @@
     <!-- Preview Column -->
     <section class="card hidden" id="previewCard">
       <h2>Live Preview (C5 landscape, 229 × 162 mm)</h2>
-      <!-- Review bar in the PREVIEW column (away from the Back button) -->
       <div class="toolbar" id="reviewBar" style="margin-bottom:10px;">
         <button id="btnPrev" class="btn review" disabled title="Previous address in review">Review ◀ Prev</button>
         <button id="btnNext" class="btn review" disabled title="Next address in review">Review Next ▶</button>
@@ -251,12 +248,29 @@
     let rows = []; let idx = 0; let mode = null; // 'single' | 'multi'
     let ttfBytes = null; let fontName = null; let customFontLoaded = false;
 
+    // ---- Keep rows in sync when in Single mode ----
+    function parseSingleIntoRows(){
+      const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
+      if(lines.length){ const name = lines.shift(); rows = [{ name, lines }]; }
+      else { rows = []; }
+      updateButtons();
+    }
+
+    function updateProgress(n){
+      els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
+    }
+
     function setStep(n){
       const cards=[els.step1,els.step2,els.step3,els.step4,els.step5,els.step6];
       cards.forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
-      els.steps.forEach((s,i)=>{ s.classList.remove('active','done'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
+      updateProgress(n);
       els.previewCard.classList.toggle('hidden', n!==6);
       if(els.status) els.status.textContent = `On step ${n}`;
+      if(n===6){ // entering preview
+        if(mode==='single') parseSingleIntoRows();
+        drawPreview(); updateButtons();
+        if(rows.length===0){ setStatus('Add a single address or upload a sheet to enable PDF.'); }
+      }
     }
 
     function setStatus(msg){ if(els.status) els.status.textContent = msg; }
@@ -281,20 +295,19 @@
     // ===== Step 1: Mode =====
     function validateMode(){
       if(els.modeSingle.checked){
-        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = false;
+        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = false; parseSingleIntoRows();
       } else if(els.modeMulti.checked){
-        mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false;
+        mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false; rows = []; updateButtons();
       } else {
         els.nextMode.disabled = true;
       }
     }
     els.modeSingle.addEventListener('change', ()=>{ validateMode(); setStep(3); });
     els.modeMulti.addEventListener('change', ()=>{ validateMode(); setStep(2); });
-    els.singleAddress.addEventListener('input', validateMode);
+    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single'){ parseSingleIntoRows(); } });
     els.nextMode.addEventListener('click', ()=>{
       if(mode==='single'){
-        const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
-        const name = lines.shift()||''; rows=[{name, lines}]; setStep(3);
+        parseSingleIntoRows(); setStep(3);
       } else if(mode==='multi'){
         setStep(2);
       } else {
@@ -336,9 +349,9 @@
 
     // ===== Step 5: Options =====
     els.back4.addEventListener('click', ()=> setStep(4));
-    els.next4.addEventListener('click', ()=>{ setStep(6); drawPreview(); updateButtons(); applyZoom(); });
+    els.next4.addEventListener('click', ()=>{ if(mode==='single'){ parseSingleIntoRows(); } setStep(6); drawPreview(); updateButtons(); applyZoom(); });
 
-    // ===== Improved UK-style Stamp (preview only) =====
+    // ===== UK-style Stamp (preview only) =====
     function drawUKStamp(ctx, W, H){
       const margin = inToPx(RET_X_IN);
       const stampW = mmToPx(30), stampH = mmToPx(36);
@@ -346,94 +359,44 @@
       const y = inToPx(RET_Y_IN) + 2;
 
       ctx.save();
-
-      // Background (red for 1st class)
       ctx.fillStyle = '#c9102f'; // Royal Mail red
       ctx.fillRect(x, y, stampW, stampH);
-
-      // Subtle gradient shine
       const grad = ctx.createLinearGradient(x, y, x, y+stampH);
       grad.addColorStop(0, 'rgba(255,255,255,0.15)');
       grad.addColorStop(1, 'rgba(255,255,255,0.00)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, y, stampW, stampH);
-
-      // Perforation
-      ctx.fillStyle = '#fff';
-      const holesX = 13, holesY = 17;
-      for(let i=0;i<holesX;i++){
-        const cx = x + (i+0.5)*stampW/holesX;
-        ctx.beginPath(); ctx.arc(cx, y, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx, y+stampH, 2, 0, Math.PI*2); ctx.fill();
-      }
-      for(let j=0;j<holesY;j++){
-        const cy = y + (j+0.5)*stampH/holesY;
-        ctx.beginPath(); ctx.arc(x, cy, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x+stampW, cy, 2, 0, Math.PI*2); ctx.fill();
-      }
-
-      // "1ST" text
-      ctx.fillStyle = '#fff';
-      ctx.font = Math.round(stampH*0.23)+'px Arial Black, Arial, sans-serif';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('1ST', x + stampW*0.08, y + stampH*0.30);
-
-      // Crown
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      const cx = x + stampW*0.82, cy = y + stampH*0.22, cw = stampW*0.18, ch = stampH*0.12;
-      ctx.beginPath();
-      ctx.moveTo(cx-cw/2, cy+ch/2);
-      ctx.lineTo(cx-cw/4, cy);
-      ctx.lineTo(cx, cy+ch/2);
-      ctx.lineTo(cx+cw/4, cy);
-      ctx.lineTo(cx+cw/2, cy+ch/2);
-      ctx.stroke();
-
-      // Silhouette (left-facing profile)
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.beginPath();
-      const sx = x + stampW*0.48, sy = y + stampH*0.58;
-      ctx.moveTo(sx, sy);
-      ctx.bezierCurveTo(sx-20, sy-28, sx-26, sy-40, sx-18, sy-48);
-      ctx.bezierCurveTo(sx-6, sy-62, sx+4, sy-60, sx+10, sy-52);
-      ctx.bezierCurveTo(sx+14, sy-46, sx+12, sy-40, sx+6, sy-36);
-      ctx.bezierCurveTo(sx+2, sy-32, sx, sy-28, sx+4, sy-24);
-      ctx.bezierCurveTo(sx+0, sy-20, sx-6, sy-12, sx-6, sy-8);
-      ctx.bezierCurveTo(sx-6, sy-2, sx-2, sy+4, sx, sy);
-      ctx.closePath();
-      ctx.fill();
-
+      ctx.fillStyle = grad; ctx.fillRect(x, y, stampW, stampH);
+      ctx.fillStyle = '#fff'; const holesX = 13, holesY = 17;
+      for(let i=0;i<holesX;i++){ const cx = x + (i+0.5)*stampW/holesX; ctx.beginPath(); ctx.arc(cx, y, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(cx, y+stampH, 2, 0, Math.PI*2); ctx.fill(); }
+      for(let j=0;j<holesY;j++){ const cy = y + (j+0.5)*stampH/holesY; ctx.beginPath(); ctx.arc(x, cy, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+stampW, cy, 2, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = '#fff'; ctx.font = Math.round(stampH*0.23)+'px Arial Black, Arial, sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.fillText('1ST', x + stampW*0.08, y + stampH*0.30);
       ctx.restore();
     }
 
     // ===== Preview drawing =====
     function drawPreview(){
       const W=els.canvas.width, H=els.canvas.height;
+      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
 
-      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
       const previewFont = customFontLoaded ? `${nameFs}px ${fontName}, Arial, sans-serif` : `${nameFs}px Arial, sans-serif`;
       const previewFontReturn = customFontLoaded ? `${retFs}px ${fontName}, Arial, sans-serif` : `${retFs}px Arial, sans-serif`;
-
       const ink = parseColourName(els.inkPreset.value);
 
       // Return block (TOP-LEFT)
       if(els.useReturn.checked && els.returnBlock.value.trim()){
         ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
-        const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+        const retLeft = Math.round(pxPerMM * 25.4 * RET_X_IN); let y = Math.round(pxPerMM * 25.4 * RET_Y_IN) + retFs;
+        const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
         for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retFs*1.2); }
       }
 
-      // Recipient (use same ink colour)
-      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs;
-      const rcp=rows[idx]||{name:'',lines:[]};
-      if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); }
-      for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); }
+      // Recipient (same ink colour)
+      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont;
+      const recX=Math.round(pxPerMM * 25.4 * REC_X_IN); let recY=Math.round(pxPerMM * 25.4 * REC_TOP_IN) + nameFs;
+      if(rows.length){ const rcp=rows[idx]; if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); } for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); } }
+      else { ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Type a single address (Step 1) or upload an .xlsx (Step 2) to continue…',16,32); }
 
-      // Stamp at top-right
       drawUKStamp(ctx,W,H);
-
       els.counter.textContent = rows.length?`Preview ${idx+1}/${rows.length}`:'';
     }
 
@@ -453,14 +416,15 @@
     }
 
     async function generatePDF(){
+      if(rows.length===0){ setStatus('No addresses to print.'); return; }
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
       const pdfDoc = await PDFDocument.create();
       let pdfFont = null; let useCustom=(els.useCustomFont.checked && ttfBytes);
       if(useCustom){ const fk=await ensureFontkitLoaded(); pdfDoc.registerFontkit(fk); const fontBytes=(ttfBytes instanceof ArrayBuffer)?new Uint8Array(ttfBytes):ttfBytes; pdfFont=await pdfDoc.embedFont(fontBytes); } else { pdfFont=await pdfDoc.embedFont(StandardFonts.Helvetica); }
 
-      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM);
-      const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN;
-      const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
+      const pageWidth=(ENVELOPE_W_MM/25.4)*72, pageHeight=(ENVELOPE_H_MM/25.4)*72;
+      const recXpt=REC_X_IN*72, recTopPt=REC_TOP_IN*72;
+      const retMarginX=RET_X_IN*72, retTopPt=RET_Y_IN*72;
 
       const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10;
       const ink=parseColourName(els.inkPreset.value);
@@ -474,8 +438,7 @@
         if(retLines.length){
           let y=pageHeight - retTopPt - retFs;
           for(const line of retLines){
-            const x = retMarginX;
-            page.drawText(line,{x,y,size:retFs,font:pdfFont,color:inkRGB});
+            page.drawText(line,{x:retMarginX,y:y,size:retFs,font:pdfFont,color:inkRGB});
             y -= retFs*1.2;
           }
         }
@@ -486,11 +449,21 @@
         for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
       }
 
-      const bytes=await pdfDoc.save(); const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const bytes=await pdfDoc.save();
+      const blob=new Blob([bytes],{type:'application/pdf'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+
+      setStatus('PDF downloaded.');
     }
 
     // Hook up Step 6
-    els.btnGenerate.addEventListener('click', async()=>{ els.btnGenerate.disabled=true; setStatus('Building PDF…'); try{ await generatePDF(); setStatus('PDF downloaded.'); } catch(err){ console.error(err); setStatus('Error: '+err.message); } finally{ els.btnGenerate.disabled=false; } });
+    els.btnGenerate.addEventListener('click', async()=>{
+      els.btnGenerate.disabled=true; setStatus('Building PDF…');
+      try{ await generatePDF(); } catch(err){ console.error(err); setStatus('Error: '+err.message); }
+      finally{ els.btnGenerate.disabled=false; }
+    });
 
     // Redraw on options change (after step 6)
     ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{
