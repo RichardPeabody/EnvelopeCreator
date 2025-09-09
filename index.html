@@ -89,6 +89,7 @@ Bramhall, Cheshire, SK7 2EE, UK</textarea>
   <!-- Libraries -->
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js"></script>
 
   <script>
     // --- Geometry helpers (mm/in)
@@ -238,6 +239,8 @@ Bramhall, Cheshire, SK7 2EE, UK</textarea>
     async function generatePDF(){
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
       const pdfDoc = await PDFDocument.create();
+      // Register fontkit so we can embed the uploaded TTF
+      try { pdfDoc.registerFontkit(window.fontkit); } catch(e) { console.warn('fontkit registration warning:', e); }
       const customFont = await pdfDoc.embedFont(ttfBytes);
 
       const pageWidth = mmToPt(ENVELOPE_W_MM);
