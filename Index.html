@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>C5 Envelope Generator</title>
+  <style>
+    :root { --ink: #00004D; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f6f7fb; color: #111; }
+    header { padding: 16px 24px; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 10; }
+    h1 { font-size: 20px; margin: 0; }
+    main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px; }
+    .panel { background: white; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); padding: 16px; }
+    .panel h2 { font-size: 16px; margin: 0 0 12px; }
+    label { display:block; font-size:12px; color:#444; margin:10px 0 6px; }
+    input[type="file"], textarea, input[type="number"], input[type="text"], select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d9deea; border-radius:8px; background:#fbfcff; font-size:14px; }
+    textarea { min-height: 110px; resize: vertical; font-family: inherit; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .btn { appearance:none; border:0; padding:10px 14px; border-radius:10px; background:#121a7a; color:white; cursor:pointer; font-weight:600; box-shadow: 0 6px 16px rgba(18,26,122,.25); }
+    .btn.secondary { background:#eef1ff; color:#121a7a; box-shadow:none; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .muted { color:#6b7280; font-size:12px; }
+    canvas { width: 100%; height: auto; background:white; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb; }
+    .status { font-size:12px; padding:6px 10px; border-radius: 8px; background:#f0f7ff; color:#0b4aa7; display:inline-block; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>C5 Envelope Generator — PDF + Live Preview</h1>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>1) Upload & Settings</h2>
+      <label>Excel (.xlsx) — Column 1 = Full Name, Columns 2+ = Address lines</label>
+      <input id="fileXlsx" type="file" accept=".xlsx" />
+
+      <label>Font (.ttf) — e.g., ShadowsIntoLight-Regular.ttf</label>
+      <input id="fileTtf" type="file" accept=".ttf" />
+
+      <div class="row">
+        <div>
+          <label>Recipient font size (pt)</label>
+          <input id="fsRecipient" type="number" value="24" min="8" max="72" />
+        </div>
+        <div>
+          <label>Return font size (pt)</label>
+          <input id="fsReturn" type="number" value="10" min="6" max="24" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Has header row?</label>
+          <select id="hasHeader"><option value="yes">Yes</option><option value="no">No</option></select>
+        </div>
+        <div>
+          <label>Ink colour (return address)</label>
+          <input id="ink" type="text" value="#00004D" />
+        </div>
+      </div>
+
+      <label>Return address (each line on its own row)</label>
+      <textarea id="returnBlock">Return Address:
+Mrs Rachel Peabody
+105 Bramhall Lane South
+Bramhall, Cheshire, SK7 2EE, UK</textarea>
+
+      <div class="toolbar" style="margin-top:12px;">
+        <button id="btnPrev" class="btn secondary" disabled>◀ Prev</button>
+        <button id="btnNext" class="btn secondary" disabled>Next ▶</button>
+        <span class="muted" id="counter">No rows loaded</span>
+      </div>
+
+      <div class="toolbar" style="margin-top:12px;">
+        <button id="btnGenerate" class="btn" disabled>Generate PDF</button>
+        <span class="status" id="status">Waiting for files…</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2) Live Preview (C5 landscape, 229 × 162 mm)</h2>
+      <canvas id="preview" width="2288" height="1620"></canvas>
+      <div class="muted" style="margin-top:8px;">Tip: Zoom your browser to check fine alignment. Preview uses your uploaded TTF as a webfont so what you see matches the PDF.</div>
+    </section>
+  </main>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+  <script>
+    // --- Geometry helpers (mm/in)
+    const MM_PER_IN = 25.4;
+    const PT_PER_IN = 72;
+    const pxPerMM = 4.0; // Canvas scale (visual only). 229mm -> ~916px; we upscale for crisper preview
+
+    function mmToPx(mm){ return Math.round(mm * pxPerMM); }
+    function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
+    function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
+
+    // C5 landscape
+    const ENVELOPE_W_MM = 229;
+    const ENVELOPE_H_MM = 162;
+
+    // Positions per spec
+    const REC_X_IN = 2;   // 2 inches from left
+    const REC_TOP_IN = 3; // 3 inches from top
+    const RET_X_IN = 0.5; // 0.5 inch left margin
+    const RET_Y_IN = 0.5; // 0.5 inch top margin
+
+    const $ = sel => document.querySelector(sel);
+    const els = {
+      fileXlsx: $('#fileXlsx'),
+      fileTtf: $('#fileTtf'),
+      fsRecipient: $('#fsRecipient'),
+      fsReturn: $('#fsReturn'),
+      hasHeader: $('#hasHeader'),
+      ink: $('#ink'),
+      returnBlock: $('#returnBlock'),
+      btnPrev: $('#btnPrev'),
+      btnNext: $('#btnNext'),
+      btnGenerate: $('#btnGenerate'),
+      status: $('#status'),
+      counter: $('#counter'),
+      canvas: $('#preview'),
+    };
+
+    const ctx = els.canvas.getContext('2d');
+    const CANVAS_W = mmToPx(ENVELOPE_W_MM);
+    const CANVAS_H = mmToPx(ENVELOPE_H_MM);
+    els.canvas.width = CANVAS_W; els.canvas.height = CANVAS_H;
+
+    let rows = []; // [{name, lines[]}, ...]
+    let idx = 0;
+    let ttfBytes = null;
+    let fontName = null; // CSS font-family name for preview
+
+    function setStatus(msg){ els.status.textContent = msg; }
+
+    function updateButtons(){
+      const ready = rows.length > 0 && !!ttfBytes;
+      els.btnGenerate.disabled = !ready;
+      els.btnPrev.disabled = idx <= 0;
+      els.btnNext.disabled = idx >= rows.length - 1;
+      els.counter.textContent = ready ? `Recipient ${idx+1} of ${rows.length}` : 'No rows loaded';
+    }
+
+    // Load TTF as a blob + dynamic webfont for preview
+    async function loadTTF(file){
+      ttfBytes = await file.arrayBuffer();
+      const blob = new Blob([ttfBytes], {type: 'font/ttf'});
+      const url = URL.createObjectURL(blob);
+      fontName = `UploadedFont_${Math.random().toString(36).slice(2)}`;
+      const face = new FontFace(fontName, `url(${url})`);
+      await face.load();
+      document.fonts.add(face);
+      setStatus('Font loaded.');
+    }
+
+    // Parse XLSX -> rows
+    async function loadXlsx(file){
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type: 'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const a = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false}); // array-of-arrays
+      const hasHeader = els.hasHeader.value === 'yes';
+      const start = hasHeader ? 1 : 0;
+      rows = [];
+      for(let r = start; r < a.length; r++){
+        const row = a[r] || [];
+        const name = (row[0] || '').toString().trim();
+        const addr = row.slice(1).map(v => (v||'').toString().trim()).filter(Boolean);
+        if(!name && addr.length===0) continue; // skip empty rows
+        rows.push({ name, lines: addr });
+      }
+      idx = 0;
+      setStatus(`Loaded ${rows.length} recipients from Excel.`);
+      updateButtons();
+      drawPreview();
+    }
+
+    function parseColour(hex){
+      const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
+      if(!m) return {r:0,g:0,b:0};
+      return { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) };
+    }
+
+    function drawPreview(){
+      // Clear
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
+      // light border
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.strokeRect(0.5,0.5,CANVAS_W-1,CANVAS_H-1);
+
+      if(!rows.length || !fontName){
+        ctx.fillStyle = '#999';
+        ctx.font = '16px system-ui';
+        ctx.fillText('Upload Excel + TTF to preview…', 16, 32);
+        return;
+      }
+
+      const nameFs = Number(els.fsRecipient.value)||24;
+      const retFs = Number(els.fsReturn.value)||10;
+      const {r,g,b} = parseColour(els.ink.value||'#00004D');
+
+      // Return address block (ink colour)
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.font = `${retFs}px ${fontName}, Arial, sans-serif`;
+      const retX = inToPx(RET_X_IN);
+      let retY = inToPx(RET_Y_IN); // canvas origin at top-left; we move down by line height
+      // We want top margin, so be careful with y positions: draw text baseline at +retFs
+      retY += retFs;
+      const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+      for(const line of lines){
+        ctx.fillText(line, retX, retY);
+        retY += Math.round(retFs * 1.2);
+      }
+
+      // Recipient block in uploaded font (black)
+      ctx.fillStyle = '#000';
+      ctx.font = `${nameFs}px ${fontName}, Arial, sans-serif`;
+      const recX = inToPx(REC_X_IN);
+      let recY = inToPx(REC_TOP_IN) + nameFs; // place baseline correctly under top offset
+      const rcp = rows[idx];
+      if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs * 1.1); }
+      for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs * 1.1); }
+
+      // Footer counter
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '12px system-ui';
+      ctx.fillText(`C5 ${ENVELOPE_W_MM}×${ENVELOPE_H_MM} mm — Preview ${idx+1}/${rows.length}`, 12, CANVAS_H-12);
+    }
+
+    // Generate PDF using pdf-lib with embedded TTF
+    async function generatePDF(){
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const customFont = await pdfDoc.embedFont(ttfBytes);
+
+      const pageWidth = mmToPt(ENVELOPE_W_MM);
+      const pageHeight = mmToPt(ENVELOPE_H_MM);
+      const recXpt = REC_X_IN * PT_PER_IN; // 2 in
+      const recTopPt = REC_TOP_IN * PT_PER_IN; // 3 in
+      const retXpt = RET_X_IN * PT_PER_IN; // 0.5 in
+      const retYtop = pageHeight - (RET_Y_IN * PT_PER_IN); // from top
+
+      const nameFs = Number(els.fsRecipient.value)||24;
+      const retFs = Number(els.fsReturn.value)||10;
+      const ink = parseColour(els.ink.value||'#00004D');
+
+      const retLines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+
+      for(const r of rows){
+        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+        // Return address (colour ink)
+        let y = retYtop - retFs; // text draws from baseline
+        for(const line of retLines){
+          page.drawText(line, { x: retXpt, y, size: retFs, font: customFont, color: rgb(ink.r/255, ink.g/255, ink.b/255) });
+          y -= retFs * 1.2;
+        }
+
+        // Recipient name + address (black)
+        let yRec = pageHeight - recTopPt - nameFs; // from top
+        if(r.name){
+          page.drawText(r.name, { x: recXpt, y: yRec, size: nameFs, font: customFont, color: rgb(0,0,0) });
+          yRec -= nameFs * 1.1;
+        }
+        for(const line of r.lines){
+          page.drawText(line, { x: recXpt, y: yRec, size: nameFs, font: customFont, color: rgb(0,0,0) });
+          yRec -= nameFs * 1.1;
+        }
+      }
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes], {type: 'application/pdf'});
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url; a.download = 'C5_Envelopes.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Event handlers
+    els.fileTtf.addEventListener('change', async e => {
+      if(e.target.files && e.target.files[0]){
+        setStatus('Loading font…');
+        await loadTTF(e.target.files[0]);
+        drawPreview();
+        updateButtons();
+      }
+    });
+
+    els.fileXlsx.addEventListener('change', async e => {
+      if(e.target.files && e.target.files[0]){
+        setStatus('Reading Excel…');
+        await loadXlsx(e.target.files[0]);
+      }
+    });
+
+    els.fsRecipient.addEventListener('input', drawPreview);
+    els.fsReturn.addEventListener('input', drawPreview);
+    els.hasHeader.addEventListener('change', () => {
+      if(els.fileXlsx.files[0]) loadXlsx(els.fileXlsx.files[0]);
+    });
+    els.ink.addEventListener('input', drawPreview);
+    els.returnBlock.addEventListener('input', drawPreview);
+
+    els.btnPrev.addEventListener('click', () => { if(idx>0){ idx--; drawPreview(); updateButtons(); }});
+    els.btnNext.addEventListener('click', () => { if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); }});
+    els.btnGenerate.addEventListener('click', async () => {
+      els.btnGenerate.disabled = true; setStatus('Building PDF…');
+      try { await generatePDF(); setStatus('PDF downloaded.'); }
+      catch(err){ console.error(err); setStatus('Error: ' + err.message); }
+      finally { updateButtons(); }
+    });
+
+    // Keyboard shortcuts for prev/next
+    window.addEventListener('keydown', (e) => {
+      if(e.key === 'ArrowLeft'){ els.btnPrev.click(); }
+      if(e.key === 'ArrowRight'){ els.btnNext.click(); }
+    });
+
+    setStatus('Waiting for files…');
+  </script>
+</body>
+</html>
