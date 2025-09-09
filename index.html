@@ -89,9 +89,32 @@ Bramhall, Cheshire, SK7 2EE, UK</textarea>
   <!-- Libraries -->
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js"></script>
+  <script id="fontkit-script" src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js"></script>
 
   <script>
+    // --- Script loader + fontkit fallback ---
+    function loadScript(url){
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url; s.async = true; s.onload = () => resolve(); s.onerror = () => reject(new Error('Failed to load ' + url));
+        document.head.appendChild(s);
+      });
+    }
+    async function ensureFontkitLoaded(){
+      let fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
+      if(fk) return fk;
+      const fallbacks = [
+        'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js',
+        'https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js'
+      ];
+      for(const url of fallbacks){
+        try { await loadScript(url); } catch(e) { /* continue */ }
+        fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
+        if(fk) return fk;
+      }
+      throw new Error('fontkit not loaded — check network/caching and script tags.');
+    }
+
     // --- Geometry helpers (mm/in)
     const MM_PER_IN = 25.4;
     const PT_PER_IN = 72;
@@ -239,9 +262,8 @@ Bramhall, Cheshire, SK7 2EE, UK</textarea>
     async function generatePDF(){
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
       const pdfDoc = await PDFDocument.create();
-      // Register fontkit so we can embed the uploaded TTF (handle UMD default export)
-      const fk = (window.fontkit && window.fontkit.default) ? window.fontkit.default : window.fontkit;
-      if(!fk){ throw new Error('fontkit not loaded — check the <script> tag for @pdf-lib/fontkit'); }
+      // Ensure fontkit is available (with CDN fallbacks)
+      const fk = await ensureFontkitLoaded();
       pdfDoc.registerFontkit(fk);
       // Ensure Uint8Array for embedFont
         const fontBytes = (ttfBytes instanceof ArrayBuffer) ? new Uint8Array(ttfBytes) : ttfBytes;
