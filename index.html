@@ -19,7 +19,7 @@
 
     .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; }
     .card h2{ margin:0 0 12px; font-size:16px; }
-    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; cursor:pointer; }
     input[type="file"], textarea, input[type="number"], input[type="text"], select{ width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:inherit; }
     textarea{ min-height:110px; resize:vertical; font-family:inherit; }
     .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -30,12 +30,11 @@
     .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
     [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
 
-    .steps{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-    .step{ padding:6px 10px; border-radius:999px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.5; display:flex; align-items:center; gap:6px; }
-    .step .tick{ width:16px; height:16px; border-radius:50%; background:#22c55e; color:white; display:none; align-items:center; justify-content:center; font-size:12px; }
+    /* Progress steps: equal widths */
+    .steps{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px; }
+    .step{ padding:10px 8px; border-radius:12px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.75; text-align:center; user-select:none; }
     .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
     .step.done{ opacity:1; background:#bbf7d0; color:#064e3b; }
-    .step.done .tick{ display:flex; }
 
     .previewWrap{ position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); background: repeating-conic-gradient(#0000 0 90deg, #f3f4f6 0 180deg) 50%/20px 20px; }
     [data-theme="dark"] .previewWrap{ background: repeating-conic-gradient(#0000 0 90deg, #111827 0 180deg) 50%/20px 20px; }
@@ -47,7 +46,10 @@
     .hidden{ display:none !important; }
     .error{ color:#b91c1c; font-size:12px; margin-top:6px; }
 
-    @media (max-width:520px){ .steps{ gap:6px; } .step{ font-size:11px; padding:6px 8px; } }
+    @media (max-width:520px){ .step{ font-size:11px; padding:8px 6px; } }
+
+    /* Emphasise 'Review' buttons */
+    .btn.review { border:2px dashed var(--accent); background:transparent; color:var(--accent); }
   </style>
 </head>
 <body>
@@ -64,12 +66,12 @@
     <!-- Wizard Column -->
     <section class="card" id="wizard">
       <div class="steps">
-        <div class="step" id="s1"><span class="tick">✓</span> 1. Mode</div>
-        <div class="step" id="s2"><span class="tick">✓</span> 2. Data</div>
-        <div class="step" id="s3"><span class="tick">✓</span> 3. Font</div>
-        <div class="step" id="s4"><span class="tick">✓</span> 4. Return</div>
-        <div class="step" id="s5"><span class="tick">✓</span> 5. Options</div>
-        <div class="step" id="s6"><span class="tick">✓</span> 6. Preview & PDF</div>
+        <div class="step" id="s1">1. Mode</div>
+        <div class="step" id="s2">2. Data</div>
+        <div class="step" id="s3">3. Font</div>
+        <div class="step" id="s4">4. Return</div>
+        <div class="step" id="s5">5. Options</div>
+        <div class="step" id="s6">6. Preview & PDF</div>
       </div>
 
       <!-- Step 1: Mode -->
@@ -79,7 +81,7 @@
         <label><input type="radio" name="mode" id="modeMulti" /> Multiple addresses (upload a spreadsheet)</label>
         <div id="singleWrap" class="hidden" style="margin-top:10px;">
           <label>Enter the recipient name and address (one line per row)</label>
-          <textarea id="singleAddress" placeholder="Full Name\nAddress line 1\nAddress line 2\nTown/City\nPostcode\nCountry"></textarea>
+          <textarea id="singleAddress" placeholder="Full Name&#10;Address line 1&#10;Address line 2&#10;Town/City&#10;Postcode&#10;Country"></textarea>
         </div>
         <div id="errMode" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
@@ -115,11 +117,11 @@
 
       <!-- Step 4: Return (optional) -->
       <div id="step4" class="hidden">
-        <h2>Return Address (top‑right, optional)</h2>
-        <label><input type="checkbox" id="useReturn" /> Print a return address at the top right</label>
+        <h2>Return Address (top‑left, optional)</h2>
+        <label><input type="checkbox" id="useReturn" /> Print a return address at the top left</label>
         <div id="returnBlockWrap" class="hidden">
           <label>Return address (each line on its own row)</label>
-          <textarea id="returnBlock" placeholder="Return Address:\nYour Name\nStreet\nTown, County, POSTCODE, Country"></textarea>
+          <textarea id="returnBlock" placeholder="Return Address:&#10;Your Name&#10;Street&#10;Town, County, POSTCODE, Country"></textarea>
           <label><input type="checkbox" id="rememberReturn" /> Remember this return address on this device</label>
         </div>
         <div id="err3" class="error hidden"></div>
@@ -134,6 +136,16 @@
         <h2>Print Options</h2>
         <div class="row2">
           <div>
+            <label>Recipient & return colour</label>
+            <select id="inkPreset">
+              <option value="black" selected>Black (default)</option>
+              <option value="blueblack">Blue‑Black (#00004D)</option>
+              <option value="blue">Blue</option>
+              <option value="red">Red</option>
+              <option value="orange">Orange</option>
+            </select>
+          </div>
+          <div>
             <label>Recipient font size (pt)</label>
             <input id="fsRecipient" type="number" value="24" min="8" max="72" />
           </div>
@@ -142,14 +154,6 @@
             <input id="fsReturn" type="number" value="10" min="6" max="24" />
           </div>
         </div>
-        <label style="margin-top:10px">Ink colour for return address</label>
-        <select id="inkPreset">
-          <option value="black" selected>Black (default)</option>
-          <option value="blueblack">Blue‑Black (#00004D)</option>
-          <option value="blue">Blue</option>
-          <option value="red">Red</option>
-          <option value="orange">Orange</option>
-        </select>
         <div id="err4" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
           <button id="back4" class="btn secondary">◁ Back</button>
@@ -160,13 +164,11 @@
       <!-- Step 6: Preview & PDF -->
       <div id="step6" class="hidden">
         <h2>Preview & PDF</h2>
-        <div class="toolbar" style="margin-bottom:10px;">
+        <!-- Control bar LEFT column (status + back + generate) -->
+        <div class="toolbar" id="controlBar" style="margin-bottom:10px;">
+          <button id="btnBackPreview" class="btn secondary" title="Go back to settings">◁ Back to settings</button>
           <span class="status" id="status">Ready.</span>
           <span id="counter" class="muted" style="margin-left:auto"></span>
-        </div>
-        <div class="toolbar" style="margin-bottom:10px;">
-          <button id="btnPrev" class="btn secondary" disabled>◀ Prev</button>
-          <button id="btnNext" class="btn secondary" disabled>Next ▶</button>
           <button id="btnGenerate" class="btn" disabled>⤓ Generate PDF</button>
         </div>
         <div class="zoombar">
@@ -177,13 +179,18 @@
       </div>
     </section>
 
-    <!-- Preview Column (hidden until step 6) -->
+    <!-- Preview Column -->
     <section class="card hidden" id="previewCard">
       <h2>Live Preview (C5 landscape, 229 × 162 mm)</h2>
+      <!-- Review bar in the PREVIEW column (away from the Back button) -->
+      <div class="toolbar" id="reviewBar" style="margin-bottom:10px;">
+        <button id="btnPrev" class="btn review" disabled title="Previous address in review">Review ◀ Prev</button>
+        <button id="btnNext" class="btn review" disabled title="Next address in review">Review Next ▶</button>
+      </div>
       <div class="previewWrap" id="previewWrap">
         <canvas id="preview" width="2288" height="1620"></canvas>
       </div>
-      <div class="muted" style="margin-top:8px;">Default font is built‑in Helvetica. Colour applies to the <b>return address</b>; recipient prints in black.</div>
+      <div class="muted" style="margin-top:8px;">Default font is built‑in Helvetica. The selected colour applies to both <b>recipient and return</b> addresses.</div>
     </section>
   </main>
 
@@ -193,15 +200,12 @@
   <script src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js" id="fontkit-script"></script>
 
   <script>
+  (function(){
     // ===== Helpers & state =====
     const MM_PER_IN = 25.4; const PT_PER_IN = 72; let pxPerMM = 4.0;
     const ENVELOPE_W_MM = 229, ENVELOPE_H_MM = 162; // C5
-    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block
-    const RET_X_IN = 0.5, RET_Y_IN = 0.5; // return margin from right/top
-    function mmToPx(mm){ return Math.round(mm * pxPerMM); }
-    function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
-    function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
-    function parseColourName(name){ switch(name){ case 'blueblack': return {r:0,g:0,b:77}; case 'blue': return {r:0,g:87,b:255}; case 'red': return {r:227,g:27,b:35}; case 'orange': return {r:249,g:115,b:22}; case 'black': default: return {r:0,g:0,b:0}; } }
+    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block (inches from left/top)
+    const RET_X_IN = 0.5, RET_Y_IN = 0.5; // return margin from LEFT/top
 
     const $ = s => document.querySelector(s);
     const els = {
@@ -218,7 +222,9 @@
       // options
       fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), next4:$('#next4'), err4:$('#err4'),
       // preview/pdf
-      status:$('#status'), counter:$('#counter'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'), zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
+      status:$('#status'), counter:$('#counter'),
+      btnBackPreview:$('#btnBackPreview'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'),
+      zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
       // canvas
       wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'),
       // theme
@@ -226,6 +232,19 @@
     };
 
     const ctx = els.canvas.getContext('2d');
+    function mmToPx(mm){ return Math.round(mm * pxPerMM); }
+    function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
+    function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
+    function parseColourName(name){
+      switch(name){
+        case 'blueblack': return {r:0,g:0,b:77};
+        case 'blue': return {r:0,g:87,b:255};
+        case 'red': return {r:227,g:27,b:35};
+        case 'orange': return {r:249,g:115,b:22};
+        case 'black': default: return {r:0,g:0,b:0};
+      }
+    }
+
     function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); }
     resizeCanvas();
 
@@ -237,27 +256,50 @@
       cards.forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
       els.steps.forEach((s,i)=>{ s.classList.remove('active','done'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
       els.previewCard.classList.toggle('hidden', n!==6);
+      if(els.status) els.status.textContent = `On step ${n}`;
     }
 
-    function setStatus(msg){ els.status.textContent = msg; }
-    function updateButtons(){ const ready = rows.length>0; els.btnGenerate.disabled = !ready; els.btnPrev.disabled = idx<=0; els.btnNext.disabled = idx>=rows.length-1; els.counter.textContent = ready?`Preview ${idx+1}/${rows.length}`:''; }
+    function setStatus(msg){ if(els.status) els.status.textContent = msg; }
+    function updateButtons(){
+      const ready = rows.length>0;
+      els.btnGenerate.disabled = !ready;
+      els.btnPrev.disabled = idx<=0;
+      els.btnNext.disabled = idx>=rows.length-1;
+      els.counter.textContent = ready?`Preview ${idx+1}/${rows.length}`:'';
+    }
 
     // Theme
-    els.themeToggle.addEventListener('click', ()=>{ const cur=document.documentElement.getAttribute('data-theme')||'light'; document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light'); });
+    els.themeToggle.addEventListener('click', ()=>{
+      const cur=document.documentElement.getAttribute('data-theme')||'light';
+      document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light');
+    });
 
     // Zoom
     function applyZoom(){ const z=parseInt(els.zoom.value,10)/100; els.wrap.style.transform=`scale(${z})`; els.wrap.style.transformOrigin='top left'; els.zoomLabel.textContent=`${Math.round(z*100)}%`; }
     els.zoom.addEventListener('input', applyZoom);
 
     // ===== Step 1: Mode =====
-    function validateMode(){ if(els.modeSingle.checked){ mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = !els.singleAddress.value.trim(); } else if(els.modeMulti.checked){ mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false; } else { els.nextMode.disabled = true; } }
-    els.modeSingle.addEventListener('change', validateMode); els.modeMulti.addEventListener('change', validateMode); els.singleAddress.addEventListener('input', validateMode);
+    function validateMode(){
+      if(els.modeSingle.checked){
+        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled = false;
+      } else if(els.modeMulti.checked){
+        mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled = false;
+      } else {
+        els.nextMode.disabled = true;
+      }
+    }
+    els.modeSingle.addEventListener('change', ()=>{ validateMode(); setStep(3); });
+    els.modeMulti.addEventListener('change', ()=>{ validateMode(); setStep(2); });
+    els.singleAddress.addEventListener('input', validateMode);
     els.nextMode.addEventListener('click', ()=>{
       if(mode==='single'){
         const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
-        if(lines.length===0){ els.errMode.textContent='Please enter the address.'; els.errMode.classList.remove('hidden'); return; }
-        const name = lines.shift(); rows=[{name, lines}]; setStep(3);
-      } else if(mode==='multi'){ setStep(2); }
+        const name = lines.shift()||''; rows=[{name, lines}]; setStep(3);
+      } else if(mode==='multi'){
+        setStep(2);
+      } else {
+        setStatus('Select a mode to continue.');
+      }
     });
 
     // ===== Step 2: Data upload (multi) =====
@@ -275,7 +317,12 @@
 
     // ===== Step 3: Font =====
     els.useCustomFont.addEventListener('change', ()=>{ const on=els.useCustomFont.checked; els.fileTtf.classList.toggle('hidden', !on); if(!on){ ttfBytes=null; fontName=null; customFontLoaded=false; } });
-    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{ ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`; const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face); try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){} customFontLoaded=true; setStatus('Custom font loaded for preview.'); }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
+    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{
+      ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`;
+      const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face);
+      try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){}
+      customFontLoaded=true; setStatus('Custom font loaded for preview.');
+    }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
     els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
     els.next2.addEventListener('click', ()=>{ if(els.useCustomFont.checked && !customFontLoaded){ els.err2.textContent='Please upload a TTF or untick the option.'; els.err2.classList.remove('hidden'); return; } els.err2.classList.add('hidden'); setStep(4); });
 
@@ -291,61 +338,152 @@
     els.back4.addEventListener('click', ()=> setStep(4));
     els.next4.addEventListener('click', ()=>{ setStep(6); drawPreview(); updateButtons(); applyZoom(); });
 
-    // ===== Preview drawing =====
-    function drawStamp(ctx,W,H){
-      // simple British-style stamp (preview only)
+    // ===== Improved UK-style Stamp (preview only) =====
+    function drawUKStamp(ctx, W, H){
       const margin = inToPx(RET_X_IN);
       const stampW = mmToPx(30), stampH = mmToPx(36);
-      const x = W - margin - stampW; const y = inToPx(RET_Y_IN) + 2;
-      ctx.save(); ctx.strokeStyle = '#a3a3a3'; ctx.lineWidth = 2; ctx.strokeRect(x,y,stampW,stampH);
-      ctx.fillStyle = '#a3a3a3'; const cx=x+stampW/2, cy=y+stampH/2; ctx.beginPath(); ctx.moveTo(cx-18, cy+8); ctx.lineTo(cx-10, cy-6); ctx.lineTo(cx, cy+2); ctx.lineTo(cx+10, cy-6); ctx.lineTo(cx+18, cy+8); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#d4d4d4'; for(let i=0;i<12;i++){ ctx.beginPath(); ctx.arc(x+(i+0.5)*(stampW/12), y, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+(i+0.5)*(stampW/12), y+stampH, 2, 0, Math.PI*2); ctx.fill(); }
-      for(let i=0;i<16;i++){ ctx.beginPath(); ctx.arc(x, y+(i+0.5)*(stampH/16), 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+stampW, y+(i+0.5)*(stampH/16), 2, 0, Math.PI*2); ctx.fill(); }
+      const x = W - margin - stampW;
+      const y = inToPx(RET_Y_IN) + 2;
+
+      ctx.save();
+
+      // Background (red for 1st class)
+      ctx.fillStyle = '#c9102f'; // Royal Mail red
+      ctx.fillRect(x, y, stampW, stampH);
+
+      // Subtle gradient shine
+      const grad = ctx.createLinearGradient(x, y, x, y+stampH);
+      grad.addColorStop(0, 'rgba(255,255,255,0.15)');
+      grad.addColorStop(1, 'rgba(255,255,255,0.00)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, stampW, stampH);
+
+      // Perforation
+      ctx.fillStyle = '#fff';
+      const holesX = 13, holesY = 17;
+      for(let i=0;i<holesX;i++){
+        const cx = x + (i+0.5)*stampW/holesX;
+        ctx.beginPath(); ctx.arc(cx, y, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, y+stampH, 2, 0, Math.PI*2); ctx.fill();
+      }
+      for(let j=0;j<holesY;j++){
+        const cy = y + (j+0.5)*stampH/holesY;
+        ctx.beginPath(); ctx.arc(x, cy, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x+stampW, cy, 2, 0, Math.PI*2); ctx.fill();
+      }
+
+      // "1ST" text
+      ctx.fillStyle = '#fff';
+      ctx.font = Math.round(stampH*0.23)+'px Arial Black, Arial, sans-serif';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('1ST', x + stampW*0.08, y + stampH*0.30);
+
+      // Crown
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      const cx = x + stampW*0.82, cy = y + stampH*0.22, cw = stampW*0.18, ch = stampH*0.12;
+      ctx.beginPath();
+      ctx.moveTo(cx-cw/2, cy+ch/2);
+      ctx.lineTo(cx-cw/4, cy);
+      ctx.lineTo(cx, cy+ch/2);
+      ctx.lineTo(cx+cw/4, cy);
+      ctx.lineTo(cx+cw/2, cy+ch/2);
+      ctx.stroke();
+
+      // Silhouette (left-facing profile)
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      const sx = x + stampW*0.48, sy = y + stampH*0.58;
+      ctx.moveTo(sx, sy);
+      ctx.bezierCurveTo(sx-20, sy-28, sx-26, sy-40, sx-18, sy-48);
+      ctx.bezierCurveTo(sx-6, sy-62, sx+4, sy-60, sx+10, sy-52);
+      ctx.bezierCurveTo(sx+14, sy-46, sx+12, sy-40, sx+6, sy-36);
+      ctx.bezierCurveTo(sx+2, sy-32, sx, sy-28, sx+4, sy-24);
+      ctx.bezierCurveTo(sx+0, sy-20, sx-6, sy-12, sx-6, sy-8);
+      ctx.bezierCurveTo(sx-6, sy-2, sx-2, sy+4, sx, sy);
+      ctx.closePath();
+      ctx.fill();
+
       ctx.restore();
     }
 
+    // ===== Preview drawing =====
     function drawPreview(){
-      const W=els.canvas.width, H=els.canvas.height; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
-      if(rows.length===0){ ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload or type an address to continue…',16,32); return; }
+      const W=els.canvas.width, H=els.canvas.height;
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
 
       const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
       const previewFont = customFontLoaded ? `${nameFs}px ${fontName}, Arial, sans-serif` : `${nameFs}px Arial, sans-serif`;
       const previewFontReturn = customFontLoaded ? `${retFs}px ${fontName}, Arial, sans-serif` : `${retFs}px Arial, sans-serif`;
 
-      // Return block
       const ink = parseColourName(els.inkPreset.value);
+
+      // Return block (TOP-LEFT)
       if(els.useReturn.checked && els.returnBlock.value.trim()){
-        ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='right';
-        const retRight = W - inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
-        for(const line of lines){ ctx.fillText(line, retRight, y); y += Math.round(retFs*1.2); } ctx.textAlign='left';
+        ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
+        const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+        for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retFs*1.2); }
       }
 
-      // Recipient (black)
-      ctx.fillStyle='#000'; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs; const rcp=rows[idx];
+      // Recipient (use same ink colour)
+      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs;
+      const rcp=rows[idx]||{name:'',lines:[]};
       if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); }
       for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); }
 
-      drawStamp(ctx,W,H);
-      els.counter.textContent = `Preview ${idx+1}/${rows.length}`;
+      // Stamp at top-right
+      drawUKStamp(ctx,W,H);
+
+      els.counter.textContent = rows.length?`Preview ${idx+1}/${rows.length}`:'';
     }
 
     els.btnPrev.addEventListener('click', ()=>{ if(idx>0){ idx--; drawPreview(); updateButtons(); } });
     els.btnNext.addEventListener('click', ()=>{ if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); } });
+    els.btnBackPreview.addEventListener('click', ()=> setStep(5));
 
-    async function ensureFontkitLoaded(){ let fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk; const urls=['https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js','https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js']; for(const u of urls){ await new Promise(res=>{ const s=document.createElement('script'); s.src=u; s.onload=res; document.head.appendChild(s); }); fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk; } throw new Error('fontkit not loaded'); }
+    async function ensureFontkitLoaded(){
+      let fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit;
+      if(fk) return fk;
+      const urls=['https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js','https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js'];
+      for(const u of urls){
+        await new Promise(res=>{ const s=document.createElement('script'); s.src=u; s.onload=res; document.head.appendChild(s); });
+        fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk;
+      }
+      throw new Error('fontkit not loaded');
+    }
 
     async function generatePDF(){
-      const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdfDoc = await PDFDocument.create();
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
       let pdfFont = null; let useCustom=(els.useCustomFont.checked && ttfBytes);
       if(useCustom){ const fk=await ensureFontkitLoaded(); pdfDoc.registerFontkit(fk); const fontBytes=(ttfBytes instanceof ArrayBuffer)?new Uint8Array(ttfBytes):ttfBytes; pdfFont=await pdfDoc.embedFont(fontBytes); } else { pdfFont=await pdfDoc.embedFont(StandardFonts.Helvetica); }
 
-      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM); const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN; const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
-      const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10; const ink=parseColourName(els.inkPreset.value);
+      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM);
+      const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN;
+      const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
+
+      const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10;
+      const ink=parseColourName(els.inkPreset.value);
+      const inkRGB = rgb(ink.r/255, ink.g/255, ink.b/255);
       const retLines = (els.useReturn.checked && els.returnBlock.value.trim()) ? els.returnBlock.value.replace(/\r/g,'').split('\n') : [];
 
-      for(const r of rows){ const page = pdfDoc.addPage([pageWidth,pageHeight]); if(retLines.length){ let y=pageHeight - retTopPt - retFs; for(const line of retLines){ const w = pdfFont.widthOfTextAtSize(line, retFs); const x = pageWidth - retMarginX - w; page.drawText(line,{x,y,size:retFs,font:pdfFont,color:rgb(ink.r/255,ink.g/255,ink.b/255)}); y -= retFs*1.2; } }
-        let yRec = pageHeight - recTopPt - nameFs; if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:rgb(0,0,0)}); yRec -= nameFs*1.1; }
-        for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:rgb(0,0,0)}); yRec -= nameFs*1.1; }
+      for(const r of rows){
+        const page = pdfDoc.addPage([pageWidth,pageHeight]);
+
+        // Return (TOP-LEFT)
+        if(retLines.length){
+          let y=pageHeight - retTopPt - retFs;
+          for(const line of retLines){
+            const x = retMarginX;
+            page.drawText(line,{x,y,size:retFs,font:pdfFont,color:inkRGB});
+            y -= retFs*1.2;
+          }
+        }
+
+        // Recipient (same ink colour)
+        let yRec = pageHeight - recTopPt - nameFs;
+        if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
+        for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
       }
 
       const bytes=await pdfDoc.save(); const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
@@ -355,10 +493,17 @@
     els.btnGenerate.addEventListener('click', async()=>{ els.btnGenerate.disabled=true; setStatus('Building PDF…'); try{ await generatePDF(); setStatus('PDF downloaded.'); } catch(err){ console.error(err); setStatus('Error: '+err.message); } finally{ els.btnGenerate.disabled=false; } });
 
     // Redraw on options change (after step 6)
-    ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{ const el=$('#'+id); if(el){ el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); }});
+    ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{
+      const el=$('#'+id);
+      if(el){
+        el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
+        el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
+      }
+    });
 
     // Init
     setStep(1);
+  })();
   </script>
 </body>
 </html>
