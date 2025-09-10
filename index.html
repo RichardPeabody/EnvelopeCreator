@@ -9,7 +9,7 @@
     [data-theme="dark"]{ --bg:#0b1020; --card:#0f152b; --text:#eef2ff; --muted:#9aa3b2; --border:#1e294a; --shadow:0 10px 30px rgba(0,0,0,.6); }
     *{ box-sizing:border-box; }
     html,body{ height:100%; }
-    body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
     header{ position:sticky; top:0; z-index:20; background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%); color:white; padding:14px 18px; box-shadow:var(--shadow); }
     header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; }
     h1{ font-size:18px; margin:0; letter-spacing:.2px; font-weight:700; }
@@ -109,17 +109,18 @@
         <h2>Font</h2>
         <label><input type="checkbox" id="useCustomFont" /> Use a custom TTF (upload below)</label>
         <input id="fileTtf" type="file" accept=".ttf" class="hidden" />
-        <p class="muted">If unchecked, the PDF uses built‑in Helvetica and the preview uses your system font.</p>
+        <p class="muted">If unchecked, the PDF uses built-in Helvetica and the preview uses your system font.</p>
         <div id="err2" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
           <button id="back2" class="btn secondary">◁ Back</button>
           <button id="next2" class="btn">Next ▷</button>
         </div>
+        <div id="statusInline" class="status" style="margin-top:8px;"></div>
       </div>
 
       <!-- Step 4: Return (optional) -->
       <div id="step4" class="hidden">
-        <h2>Return Address (top‑left, optional)</h2>
+        <h2>Return Address (top-left, optional)</h2>
         <label><input type="checkbox" id="useReturn" /> Print a return address at the top left</label>
         <div id="returnBlockWrap" class="hidden">
           <label>Return address (each line on its own row)</label>
@@ -141,7 +142,7 @@
             <label>Recipient & return colour</label>
             <select id="inkPreset">
               <option value="black" selected>Black (default)</option>
-              <option value="blueblack">Blue‑Black (#00004D)</option>
+              <option value="blueblack">Blue-Black (#00004D)</option>
               <option value="blue">Blue</option>
               <option value="red">Red</option>
               <option value="orange">Orange</option>
@@ -159,7 +160,7 @@
         <div id="err4" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
           <button id="back4" class="btn secondary">◁ Back</button>
-          <button id="next4" class="btn">Next ▷</button>
+          <button id="toPreview" class="btn">Next ▷</button>
         </div>
       </div>
 
@@ -172,6 +173,7 @@
           <span id="counter" class="muted" style="margin-left:auto"></span>
           <button id="btnGenerate" class="btn" disabled>⤓ Generate PDF</button>
         </div>
+        <div id="statusPreview" class="status" style="margin:8px 0;"></div>
         <div class="zoombar">
           <span>Zoom</span>
           <input id="zoom" type="range" min="60" max="160" value="100" />
@@ -188,24 +190,24 @@
         <button id="btnNext" class="btn review" disabled title="Next address in review">Review Next ▶</button>
       </div>
       <div class="previewWrap" id="previewWrap">
-        <canvas id="preview" width="2288" height="1620"></canvas>
+        <canvas id="preview" width="2290" height="1620"></canvas>
       </div>
-      <div class="muted" style="margin-top:8px;">Default font is built‑in Helvetica. The selected colour applies to both <b>recipient and return</b> addresses.</div>
+      <div class="muted" style="margin-top:8px;">Default font is built-in Helvetica unless you upload a .ttf. Selected colour applies to both <b>recipient and return</b> addresses.</div>
     </section>
   </main>
 
   <!-- Libraries -->
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="https://unpkg.com/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js" id="fontkit-script"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
   (function(){
     // ===== Helpers & state =====
-    const MM_PER_IN = 25.4; const PT_PER_IN = 72; let pxPerMM = 4.0;
+    const MM_PER_IN = 25.4, PT_PER_IN = 72;
     const ENVELOPE_W_MM = 229, ENVELOPE_H_MM = 162; // C5
-    const REC_X_IN = 2, REC_TOP_IN = 3; // recipient block
-    const RET_X_IN = 0.5, RET_Y_IN = 0.5; // return margin from LEFT/top
+    const REC_X_IN = 2, REC_TOP_IN = 3;          // recipient offset (inches from top-left)
+    const RET_X_IN = 0.5, RET_Y_IN = 0.5;        // return offset (inches from top-left)
+    let pxPerMM = 10; // canvas: 2290x1620 ⇒ ~10 px/mm
 
     const $ = s => document.querySelector(s);
     const els = {
@@ -215,7 +217,7 @@
       fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'), drop:$('#drop'),
       useCustomFont:$('#useCustomFont'), fileTtf:$('#fileTtf'), back2:$('#back2'), next2:$('#next2'), err2:$('#err2'),
       useReturn:$('#useReturn'), returnBlockWrap:$('#returnBlockWrap'), returnBlock:$('#returnBlock'), rememberReturn:$('#rememberReturn'), back3:$('#back3'), next3:$('#next3'), err3:$('#err3'),
-      fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), next4:$('#next4'), err4:$('#err4'),
+      fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), toPreview:$('#toPreview'), err4:$('#err4'),
       status:$('#status'), counter:$('#counter'), btnBackPreview:$('#btnBackPreview'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'),
       zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
       wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'),
@@ -223,25 +225,47 @@
     };
 
     const ctx = els.canvas.getContext('2d');
-    function mmToPx(mm){ return Math.round(mm * pxPerMM); }
-    function inToPx(inch){ return Math.round(inch * pxPerMM * MM_PER_IN); }
-    function mmToPt(mm){ return mm / MM_PER_IN * PT_PER_IN; }
-    function parseColourName(name){ switch(name){ case 'blueblack': return {r:0,g:0,b:77}; case 'blue': return {r:0,g:87,b:255}; case 'red': return {r:227,g:27,b:35}; case 'orange': return {r:249,g:115,b:22}; case 'black': default: return {r:0,g:0,b:0}; } }
-    function setStatus(msg){ if(els.status) els.status.textContent = msg; }
+    const mmToPx = mm => Math.round(mm * pxPerMM);
+    const inToPx = inch => Math.round(inch * pxPerMM * MM_PER_IN);
+    const mmToPt = mm => (mm / MM_PER_IN) * PT_PER_IN;
+    const ptToPx = pt => pt * ((pxPerMM * MM_PER_IN) / PT_PER_IN); // pt → px for preview
 
-    function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); }
-    resizeCanvas();
+    function setStatus(msg){
+      if(els.status) els.status.textContent = msg;            // Step 6 pill (transient)
+      const si = document.getElementById('statusInline');     // Step 3 inline pill
+      if (si) si.textContent = msg;
+    }
+    function setFontStatus(msg){
+      const si = document.getElementById('statusInline');     // Step 3 inline pill
+      if (si) si.textContent = msg;
+      const sp = document.getElementById('statusPreview');    // Step 6 persistent line
+      if (sp) sp.textContent = msg;
+    }
+
+    const parseColourName = name => {
+      switch(name){
+        case 'blueblack': return {r:0,g:0,b:77};
+        case 'blue':      return {r:0,g:87,b:255};
+        case 'red':       return {r:227,g:27,b:35};
+        case 'orange':    return {r:249,g:115,b:22};
+        default:          return {r:0,g:0,b:0};
+      }
+    };
+
+    // match canvas to mm
+    (function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); })();
 
     let rows = []; let idx = 0; let mode = null;
-    let ttfBytes = null; let fontName = null; let customFontLoaded = false;
+    let ttfBytes = null; let fontName = null; let customFontLoaded = false; let ttfFileName = null; let ttfBase64 = null;
 
-    function updateProgress(n){ els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); }); }
+    function updateProgress(n){
+      els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
+    }
     function setStep(n){
-      const cards=[els.step1,els.step2,els.step3,els.step4,els.step5,els.step6];
-      cards.forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
+      [els.step1,els.step2,els.step3,els.step4,els.step5,els.step6].forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
       updateProgress(n);
       els.previewCard.classList.toggle('hidden', n!==6);
-      if(els.status) els.status.textContent = `On step ${n}`;
+      setStatus(`On step ${n}`);
       if(n===6){ drawPreview(); updateButtons(); applyZoom(); }
     }
 
@@ -250,46 +274,64 @@
       els.btnGenerate.disabled = !ready;
       els.btnPrev.disabled = idx<=0;
       els.btnNext.disabled = idx>=rows.length-1;
-      els.counter.textContent = ready?`Preview ${idx+1}/${rows.length}`:'';
+      els.counter.textContent = ready ? `Preview ${idx+1} / ${rows.length}` : '';
     }
 
     // Theme
-    els.themeToggle.addEventListener('click', ()=>{ const cur=document.documentElement.getAttribute('data-theme')||'light'; document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light'); });
+    els.themeToggle.addEventListener('click', ()=>{
+      const cur=document.documentElement.getAttribute('data-theme')||'light';
+      document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light');
+    });
 
     // Zoom
     function applyZoom(){ const z=parseInt(els.zoom.value,10)/100; els.wrap.style.transform=`scale(${z})`; els.wrap.style.transformOrigin='top left'; els.zoomLabel.textContent=`${Math.round(z*100)}%`; }
     els.zoom.addEventListener('input', applyZoom);
 
-    // Step 1
-    function parseSingleIntoRows(){ const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean); if(lines.length){ const name = lines.shift(); rows = [{ name, lines }]; } else { rows = []; } updateButtons(); }
-    function validateMode(){ if(els.modeSingle.checked){ mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled=false; parseSingleIntoRows(); } else if(els.modeMulti.checked){ mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled=false; rows=[]; updateButtons(); } else { els.nextMode.disabled=true; } }
-    els.modeSingle.addEventListener('change', ()=>{ validateMode(); setStep(3); });
-    els.modeMulti.addEventListener('change', ()=>{ validateMode(); setStep(2); });
-    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single') parseSingleIntoRows(); });
-    els.nextMode.addEventListener('click', ()=>{ if(mode==='single'){ parseSingleIntoRows(); setStep(3); } else if(mode==='multi'){ setStep(2); } else { setStatus('Select a mode to continue.'); } });
-
-    // CSV parser (simple, handles quotes)
-    function parseCSV(text){
-      const rows=[]; let cur=''; let row=[]; let inQ=false;
-      for(let i=0;i<text.length;i++){ const ch=text[i]; if(ch==='\"'){ if(inQ && text[i+1]==='\"'){ cur+='\"'; i++; } else { inQ=!inQ; } } else if(ch===',' && !inQ){ row.push(cur); cur=''; } else if((ch==='\n'||ch==='\r') && !inQ){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; } else { cur+=ch; } }
-      if(cur.length>0 || row.length>0){ row.push(cur); rows.push(row); }
-      return rows;
+    // Step 1: Mode
+    function parseSingleIntoRows(){
+      const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
+      rows = lines.length ? [{ name: lines[0], lines: lines.slice(1) }] : [];
+      updateButtons();
     }
+    function validateMode(){
+      if(els.modeSingle.checked){
+        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled=false; parseSingleIntoRows();
+      } else if(els.modeMulti.checked){
+        mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled=false; rows=[]; updateButtons();
+      } else { els.nextMode.disabled=true; }
+    }
+    els.modeSingle.addEventListener('change', ()=>{ validateMode(); });
+    els.modeMulti.addEventListener('change', ()=>{ validateMode(); });
+    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single') parseSingleIntoRows(); });
+    els.nextMode.addEventListener('click', ()=>{
+      if(mode==='single'){ parseSingleIntoRows(); setStep(3); }
+      else if(mode==='multi'){ setStep(2); }
+      else { setStatus('Select a mode to continue.'); }
+    });
 
+    // Step 2: CSV/XLSX
+    function parseCSV(text){
+      const out=[]; let cur=''; let row=[]; let inQ=false;
+      for(let i=0;i<text.length;i++){
+        const ch=text[i];
+        if(ch==='\"'){ if(inQ && text[i+1]==='\"'){ cur+='\"'; i++; } else { inQ=!inQ; } }
+        else if(ch===',' && !inQ){ row.push(cur); cur=''; }
+        else if((ch==='\n'||ch==='\r') && !inQ){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cur); out.push(row); row=[]; cur=''; }
+        else { cur+=ch; }
+      }
+      if(cur.length>0 || row.length>0){ row.push(cur); out.push(row); }
+      return out;
+    }
     async function handleDataFile(file){
       els.err1.classList.add('hidden'); els.next1.disabled = true; if(!file) return;
       try{
-        const name = (file.name||'').toLowerCase();
-        let arr=[];
-        if(name.endsWith('.csv')){
-          const txt = await file.text();
-          arr = parseCSV(txt);
-        } else if(name.endsWith('.xlsx')){
-          const buf = await file.arrayBuffer(); const wb = XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+        const name = (file.name||'').toLowerCase(); let arr=[];
+        if(name.endsWith('.csv')){ arr = parseCSV(await file.text()); }
+        else if(name.endsWith('.xlsx')){
+          const wb = XLSX.read(await file.arrayBuffer(),{type:'array'});
+          const ws=wb.Sheets[wb.SheetNames[0]];
           arr = XLSX.utils.sheet_to_json(ws,{header:1,raw:false});
-        } else {
-          throw new Error('Unsupported file type. Please upload .xlsx or .csv');
-        }
+        } else throw new Error('Upload .xlsx or .csv');
 
         const start=(els.hasHeader.value==='yes')?1:0; rows=[]; idx=0;
         for(let r=start;r<arr.length;r++){
@@ -299,270 +341,232 @@
           if(!nameCell && addr.length===0) continue;
           rows.push({name:nameCell, lines:addr});
         }
-        if(rows.length>0){
-          els.next1.disabled=false; setStatus(`Loaded ${rows.length} address${rows.length>1?'es':''}.`);
-        } else {
-          els.err1.textContent='No rows found. Check header toggle or file format.'; els.err1.classList.remove('hidden');
-        }
+        if(rows.length>0){ els.next1.disabled=false; setStatus(`Loaded ${rows.length} address${rows.length>1?'es':''}.`); }
+        else { els.err1.textContent='No rows found. Check header option or file format.'; els.err1.classList.remove('hidden'); }
       }catch(err){
         els.err1.textContent = (err && err.message) ? err.message : 'Could not read file.'; els.err1.classList.remove('hidden');
       } finally { updateButtons(); }
     }
-
     els.fileXlsx.addEventListener('change', e=> handleDataFile(e.target.files && e.target.files[0]));
     els.hasHeader.addEventListener('change', ()=>{ const f=els.fileXlsx.files && els.fileXlsx.files[0]; if(f) handleDataFile(f); });
-
-    // Drag-and-drop
     ;['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
     ;['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
     els.drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files && e.dataTransfer.files[0]; if(f) handleDataFile(f); });
-
     els.next1.addEventListener('click', ()=> setStep(3));
 
-    // Step 3: Font
-    els.useCustomFont.addEventListener('change', ()=>{ const on=els.useCustomFont.checked; els.fileTtf.classList.toggle('hidden', !on); if(!on){ ttfBytes=null; fontName=null; customFontLoaded=false; } });
-    els.fileTtf.addEventListener('change', async e=>{ const file=e.target.files && e.target.files[0]; if(!file) return; try{ ttfBytes=await file.arrayBuffer(); const blob=new Blob([ttfBytes],{type:'font/ttf'}); const url=URL.createObjectURL(blob); fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`; const face=new FontFace(fontName,`url(${url})`); await face.load(); document.fonts.add(face); try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(e){} customFontLoaded=true; setStatus('Custom font loaded for preview.'); }catch(err){ els.err2.textContent='Could not load font file.'; els.err2.classList.remove('hidden'); } });
-    els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
-    els.next2.addEventListener('click', ()=>{ if(els.useCustomFont.checked && !customFontLoaded){ els.err2.textContent='Please upload a TTF or untick the option.'; els.err2.classList.remove('hidden'); return; } els.err2.classList.add('hidden'); setStep(4); });
+    // Step 3: Font (auto-enable on upload; embed same font in PDF)
+    function abToBase64(buf){
+      let binary = '';
+      const bytes = new Uint8Array(buf);
+      const chunk = 0x8000;
+      for(let i=0;i<bytes.length;i+=chunk){
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+      }
+      return btoa(binary);
+    }
 
-    // Step 4
-    try{ const saved=localStorage.getItem('envelope_return_v1'); if(saved){ els.returnBlock.value=saved; } const savedUse=localStorage.getItem('envelope_useReturn_v1'); if(savedUse==='1'){ els.useReturn.checked=true; els.returnBlockWrap.classList.remove('hidden'); } }catch(e){}
-    els.useReturn.addEventListener('change', ()=>{ const on=els.useReturn.checked; els.returnBlockWrap.classList.toggle('hidden', !on); });
-    els.rememberReturn.addEventListener('change', ()=>{ if(els.rememberReturn.checked && els.returnBlock.value.trim()){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0'); }catch(e){} } });
-    els.returnBlock.addEventListener('input', ()=>{ if(els.rememberReturn.checked){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(e){} } });
+    els.useCustomFont.addEventListener('change', ()=>{
+      const on=els.useCustomFont.checked;
+      els.fileTtf.classList.toggle('hidden', !on);
+      if(!on){ ttfBytes=null; ttfBase64=null; fontName=null; customFontLoaded=false; ttfFileName=null; }
+    });
+    els.fileTtf.addEventListener('change', async e=>{
+      const file=e.target.files && e.target.files[0];
+      if(!file) return;
+      try{
+        if(!els.useCustomFont.checked){ els.useCustomFont.checked = true; els.fileTtf.classList.remove('hidden'); }
+        ttfBytes=await file.arrayBuffer();
+        ttfBase64 = abToBase64(ttfBytes);
+        ttfFileName = file.name || 'CustomFont.ttf';
+        // Load for preview
+        const url=URL.createObjectURL(new Blob([ttfBytes],{type:'font/ttf'}));
+        fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`;
+        const face=new FontFace(fontName,`url(${url})`);
+        await face.load();
+        document.fonts.add(face);
+        try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(_){}
+        customFontLoaded=true;
+        setFontStatus(`Custom font loaded for preview: ${ttfFileName}. It will be embedded in the PDF.`);
+        drawPreview();
+      }catch(err){
+        els.err2.textContent='Could not load font file.';
+        els.err2.classList.remove('hidden');
+      }
+    });
+    els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
+    els.next2.addEventListener('click', ()=>{
+      if(els.useCustomFont.checked && !customFontLoaded){
+        els.err2.textContent='Please upload a TTF or untick the option.';
+        els.err2.classList.remove('hidden');
+        return;
+      }
+      els.err2.classList.add('hidden');
+      setStep(4);
+    });
+
+    // Step 4: Return
+    try{
+      const saved=localStorage.getItem('envelope_return_v1');
+      if(saved){ els.returnBlock.value=saved; }
+      const savedUse=localStorage.getItem('envelope_useReturn_v1');
+      if(savedUse==='1'){ els.useReturn.checked=true; els.returnBlockWrap.classList.remove('hidden'); }
+    }catch(_){}
+    els.useReturn.addEventListener('change', ()=>{
+      els.returnBlockWrap.classList.toggle('hidden', !els.useReturn.checked);
+    });
+    els.rememberReturn.addEventListener('change', ()=>{
+      if(els.rememberReturn.checked && els.returnBlock.value.trim()){
+        try{
+          localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim());
+          localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0');
+        }catch(_){}
+      }
+    });
+    els.returnBlock.addEventListener('input', ()=>{
+      if(els.rememberReturn.checked){
+        try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(_){}
+      }
+    });
     els.back3.addEventListener('click', ()=> setStep(3));
-    els.next3.addEventListener('click', ()=>{ if(els.useReturn.checked && !els.returnBlock.value.trim()){ els.err3.textContent='Please enter the return address or untick the option.'; els.err3.classList.remove('hidden'); return; } els.err3.classList.add('hidden'); setStep(5); });
+    els.next3.addEventListener('click', ()=>{
+      if(els.useReturn.checked && !els.returnBlock.value.trim()){
+        els.err3.textContent='Please enter the return address or untick the option.';
+        els.err3.classList.remove('hidden');
+        return;
+      }
+      els.err3.classList.add('hidden');
+      setStep(5);
+    });
 
     // Step 5
     els.back4.addEventListener('click', ()=> setStep(4));
-    els.next4.addEventListener('click', ()=>{ setStep(6); });
+    els.toPreview.addEventListener('click', ()=>{ setStep(6); });
 
-    // UK-style Stamp
-    function drawUKStamp(ctx, W, H){
-      const margin = inToPx(RET_X_IN);
-      const stampW = mmToPx(30), stampH = mmToPx(36);
-      const x = W - margin - stampW;
-      const y = inToPx(RET_Y_IN) + 2;
-      ctx.save();
-      ctx.fillStyle = '#c9102f'; ctx.fillRect(x, y, stampW, stampH);
-      const grad = ctx.createLinearGradient(x, y, x, y+stampH);
-      grad.addColorStop(0, 'rgba(255,255,255,0.15)'); grad.addColorStop(1, 'rgba(255,255,255,0.00)');
-      ctx.fillStyle = grad; ctx.fillRect(x, y, stampW, stampH);
-      ctx.fillStyle = '#fff'; const holesX = 13, holesY = 17;
-      for(let i=0;i<holesX;i++){ const cx = x + (i+0.5)*stampW/holesX; ctx.beginPath(); ctx.arc(cx, y, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(cx, y+stampH, 2, 0, Math.PI*2); ctx.fill(); }
-      for(let j=0;j<holesY;j++){ const cy = y + (j+0.5)*stampH/holesY; ctx.beginPath(); ctx.arc(x, cy, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+stampW, cy, 2, 0, Math.PI*2); ctx.fill(); }
-      ctx.fillStyle = '#fff'; ctx.font = Math.round(stampH*0.23)+'px Arial Black, Arial, sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.fillText('1ST', x + stampW*0.08, y + stampH*0.30);
-      ctx.restore();
-    }
-
+    // Preview (pt→px, same font as PDF when uploaded)
     function drawPreview(){
       const W=els.canvas.width, H=els.canvas.height;
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
-      const nameFs=Number(els.fsRecipient.value)||24; const retFs=Number(els.fsReturn.value)||10;
-      const previewFont = customFontLoaded ? `${nameFs}px ${fontName}, Arial, sans-serif` : `${nameFs}px Arial, sans-serif`;
-      const previewFontReturn = customFontLoaded ? `${retFs}px ${fontName}, Arial, sans-serif` : `${retFs}px Arial, sans-serif`;
+
+      const namePt=Number(els.fsRecipient.value)||24;
+      const retPt=Number(els.fsReturn.value)||10;
+      const namePx = ptToPx(namePt);
+      const retPx = ptToPx(retPt);
+      const previewFont = customFontLoaded ? `${Math.round(namePx)}px ${fontName}, Arial, sans-serif` : `${Math.round(namePx)}px Arial, sans-serif`;
+      const previewFontReturn = customFontLoaded ? `${Math.round(retPx)}px ${fontName}, Arial, sans-serif` : `${Math.round(retPx)}px Arial, sans-serif`;
       const ink = parseColourName(els.inkPreset.value);
-      // Return (top-left)
+
+      // Return
       if(els.useReturn.checked && els.returnBlock.value.trim()){
         ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
-        const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retFs; const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
-        for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retFs*1.2); }
+        const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retPx;
+        const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
+        for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retPx*1.2); }
       }
-      // Recipient (same colour)
-      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont; const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + nameFs;
-      const rcp=rows[idx]; if(rcp){ if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(nameFs*1.1); } for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(nameFs*1.1); } }
-      else { ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload .xlsx/.csv (Step 2) to continue…',16,32); }
-      drawUKStamp(ctx,W,H);
-      els.counter.textContent = rows.length?`Preview ${idx+1}/${rows.length}`:'';
+
+      // Recipient
+      ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont;
+      const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + namePx;
+      const rcp=rows[idx];
+      if(rcp){
+        if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(namePx*1.1); }
+        for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(namePx*1.1); }
+      } else {
+        ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload .xlsx/.csv (Step 2) to continue…',16,32);
+      }
+
+      els.counter.textContent = rows.length?`Preview ${idx+1} / ${rows.length}`:'';
     }
 
     els.btnPrev.addEventListener('click', ()=>{ if(idx>0){ idx--; drawPreview(); updateButtons(); } });
     els.btnNext.addEventListener('click', ()=>{ if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); } });
     els.btnBackPreview.addEventListener('click', ()=> setStep(5));
 
-    async function ensureFontkitLoaded(){
-      let fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit;
-      if(fk) return fk;
-      const urls=['https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.2.1/dist/fontkit.umd.min.js','https://unpkg.com/@pdf-lib/fontkit@1/dist/fontkit.umd.min.js'];
-      for(const u of urls){
-        await new Promise(res=>{ const s=document.createElement('script'); s.src=u; s.onload=res; document.head.appendChild(s); });
-        fk=(window.fontkit&&window.fontkit.default)?window.fontkit.default:window.fontkit; if(fk) return fk;
-      }
-      throw new Error('fontkit not loaded');
-    }
-
+    // PDF via jsPDF with embedded TTF
     async function generatePDF(){
       if(rows.length===0){ setStatus('No addresses to print.'); return; }
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const pdfDoc = await PDFDocument.create();
-      let pdfFont = null; let useCustom=(els.useCustomFont.checked && ttfBytes);
-      if(useCustom){ const fk=await ensureFontkitLoaded(); pdfDoc.registerFontkit(fk); const fontBytes=(ttfBytes instanceof ArrayBuffer)?new Uint8Array(ttfBytes):ttfBytes; pdfFont=await pdfDoc.embedFont(fontBytes); } else { pdfFont=await pdfDoc.embedFont(StandardFonts.Helvetica); }
-      const pageWidth=mmToPt(ENVELOPE_W_MM), pageHeight=mmToPt(ENVELOPE_H_MM);
-      const recXpt=REC_X_IN*PT_PER_IN, recTopPt=REC_TOP_IN*PT_PER_IN;
-      const retMarginX=RET_X_IN*PT_PER_IN, retTopPt=RET_Y_IN*PT_PER_IN;
-      const nameFs = Number(els.fsRecipient.value)||24; const retFs = Number(els.fsReturn.value)||10;
-      const ink=parseColourName(els.inkPreset.value); const inkRGB = rgb(ink.r/255, ink.g/255, ink.b/255);
-      const retLines = (els.useReturn.checked && els.returnBlock.value.trim()) ? els.returnBlock.value.replace(/\r/g,'').split('\n') : [];
-      for(const r of rows){
-        const page = pdfDoc.addPage([pageWidth,pageHeight]);
-        if(retLines.length){ let y=pageHeight - retTopPt - retFs; for(const line of retLines){ page.drawText(line,{x:retMarginX,y,size:retFs,font:pdfFont,color:inkRGB}); y -= retFs*1.2; } }
-        let yRec = pageHeight - recTopPt - nameFs; if(r.name){ page.drawText(r.name,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
-        for(const line of r.lines){ page.drawText(line,{x:recXpt,y:yRec,size:nameFs,font:pdfFont,color:inkRGB}); yRec -= nameFs*1.1; }
+      const { jsPDF } = window.jspdf;
+      const pageWidth  = mmToPt(ENVELOPE_W_MM);
+      const pageHeight = mmToPt(ENVELOPE_H_MM);
+      const pdf = new jsPDF({orientation:'landscape', unit:'pt', format:[pageWidth, pageHeight]});
+
+      const recXpt     = REC_X_IN * PT_PER_IN;
+      const recTopPt   = REC_TOP_IN * PT_PER_IN;
+      const retMarginX = RET_X_IN * PT_PER_IN;
+      const retTopPt   = RET_Y_IN * PT_PER_IN;
+
+      const namePt = Number(els.fsRecipient.value)||24;
+      const retPt  = Number(els.fsReturn.value)||10;
+
+      const col = parseColourName(els.inkPreset.value);
+      pdf.setTextColor(col.r, col.g, col.b);
+
+      // Embed custom TTF if selected, else built-in
+      if(els.useCustomFont.checked && ttfBase64){
+        try{
+          const vfsName = ttfFileName || 'Uploaded.ttf';
+          pdf.addFileToVFS(vfsName, ttfBase64);
+          pdf.addFont(vfsName, 'UploadedFont', 'normal');
+          pdf.setFont('UploadedFont', 'normal');
+          setFontStatus(`Using custom font in PDF: ${ttfFileName} ✓`);
+        }catch(e){
+          setFontStatus('Could not embed custom font — using built-in.');
+          pdf.setFont('helvetica', 'normal');
+        }
+      } else {
+        pdf.setFont('helvetica', 'normal');
+        setFontStatus('Custom font not selected — using Helvetica.');
       }
-      const bytes=await pdfDoc.save(); const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download='C5_Envelopes.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+
+      const retLines = (els.useReturn.checked && els.returnBlock.value.trim())
+        ? els.returnBlock.value.replace(/\r/g,'').split('\n')
+        : [];
+
+      rows.forEach((r, i)=>{
+        if(i>0) pdf.addPage([pageWidth, pageHeight], 'landscape');
+        // Return
+        if(retLines.length){
+          let y = retTopPt + retPt;
+          pdf.setFontSize(retPt);
+          retLines.forEach(line => { pdf.text(line, retMarginX, y, { baseline: 'alphabetic' }); y += retPt*1.2; });
+        }
+        // Recipient
+        let yRec = recTopPt + namePt;
+        pdf.setFontSize(namePt);
+        if(r.name){ pdf.text(r.name, recXpt, yRec, { baseline: 'alphabetic' }); yRec += namePt*1.1; }
+        r.lines.forEach(line => { pdf.text(line, recXpt, yRec, { baseline: 'alphabetic' }); yRec += namePt*1.1; });
+      });
+
+      pdf.save('C5_Envelopes.pdf');
       setStatus('PDF downloaded.');
     }
 
-    els.btnGenerate.addEventListener('click', async()=>{ els.btnGenerate.disabled=true; setStatus('Building PDF…'); try{ await generatePDF(); } catch(err){ console.error(err); setStatus('Error: '+err.message); } finally{ els.btnGenerate.disabled=false; } });
+    els.btnGenerate.addEventListener('click', async()=>{
+      els.btnGenerate.disabled=true;
+      setStatus('Building PDF…');
+      try{ await generatePDF(); }
+      catch(err){ console.error(err); setStatus('Error: '+(err?.message||err)); }
+      finally{ els.btnGenerate.disabled=false; }
+    });
 
-    // Live redraw updates
+    // Live redraw hooks
     ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{
       const el=$('#'+id);
-      if(el){ el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } }); }
+      if(el){
+        el.addEventListener('input',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
+        el.addEventListener('change',()=>{ if(!els.previewCard.classList.contains('hidden')){ drawPreview(); updateButtons(); } });
+      }
     });
 
     // Init
-    setStep(1);
+    (function initDefaults(){
+      els.modeSingle.checked = true;
+      // setup canvas
+      els.canvas.width = mmToPx(ENVELOPE_W_MM);
+      els.canvas.height = mmToPx(ENVELOPE_H_MM);
+      validateMode();
+      setStep(1);
+    })();
   })();
   </script>
-<!-- BEGIN: PDF export patch (no other changes needed) -->
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script>
-(function () {
-  // Inline external images to avoid CORS/tainted canvas issues
-  async function inlineExternalImages(container) {
-    const toDataUrl = (url) =>
-      fetch(url, { mode: "cors", credentials: "omit" })
-        .then((r) => r.blob())
-        .then((blob) => new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        }));
-    const imgs = Array.from(container.querySelectorAll("img"))
-      .filter((img) => img.src && !img.src.startsWith("data:"));
-    for (const img of imgs) {
-      try {
-        const dataUrl = await toDataUrl(img.src);
-        img.setAttribute("src", dataUrl);
-        img.setAttribute("crossorigin", "anonymous");
-      } catch (e) {
-        console.warn("Could not inline image for PDF:", img.src, e);
-      }
-    }
-  }
-
-  // Core export
-  async function exportPreviewToPdf({ selector, filename = "envelopes.pdf", margin = 8 }) {
-    if (!window.html2canvas) throw new Error("html2canvas not loaded.");
-    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("jsPDF not loaded.");
-    const { jsPDF } = window.jspdf;
-
-    const container = document.querySelector(selector);
-    if (!container) { alert('PDF export error: preview container not found: ' + selector); return; }
-
-    await inlineExternalImages(container);
-
-    // If your preview has multiple page wrappers, give them class "envelope-page" (or "envelope-preview-page")
-    const pageNodes = container.querySelectorAll(".envelope-page, .envelope-preview-page");
-    const targets = pageNodes.length ? Array.from(pageNodes) : [container];
-
-    const pdf = new jsPDF({ unit: "pt", format: "a4", compress: true });
-    let first = true;
-
-    for (const el of targets) {
-      const prevBg = el.style.backgroundColor;
-      el.style.backgroundColor = "#ffffff";
-      const canvas = await html2canvas(el, {
-        scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        windowWidth: el.scrollWidth || undefined,
-        windowHeight: el.scrollHeight || undefined,
-      });
-      el.style.backgroundColor = prevBg;
-
-      const img = canvas.toDataURL("image/jpeg", 0.92);
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
-      const maxW = pw - margin * 2;
-      const maxH = ph - margin * 2;
-      const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
-      const w = Math.floor(canvas.width * ratio);
-      const h = Math.floor(canvas.height * ratio);
-      const x = Math.floor((pw - w) / 2);
-      const y = Math.floor((ph - h) / 2);
-
-      if (!first) pdf.addPage();
-      pdf.addImage(img, "JPEG", x, y, w, h, undefined, "FAST");
-      first = false;
-    }
-
-    pdf.save(filename);
-  }
-
-  // Try to find your preview container automatically
-  function detectPreviewSelector() {
-    const candidates = [
-      "#previewPages", "#preview", "#reviewPreview",
-      "#envelopePreview", "#pages", "#wizardPreview"
-    ];
-    for (const sel of candidates) {
-      if (document.querySelector(sel)) return sel;
-    }
-    // Last resort: ask once
-    const typed = prompt('Enter CSS selector for your preview container (e.g. #preview):', '#preview');
-    return typed || "#preview";
-  }
-
-  // Expose a manual trigger if you ever want it
-  window.generatePdfNow = function () {
-    const selector = detectPreviewSelector();
-    return exportPreviewToPdf({ selector, filename: "envelopes.pdf" });
-  };
-
-  // Auto-wire your existing "Generate PDF" button without changing your code
-  function textOf(el){ return (el.textContent || el.value || "").trim().toLowerCase(); }
-  const buttons = Array.from(document.querySelectorAll('button, a[role="button"], input[type="button"], input[type="submit"]'));
-  const targetBtn = buttons.find(b => {
-    const t = textOf(b);
-    return t === "generate pdf" || t === "export pdf" || t === "download pdf" || t === "pdf";
-  }) || document.getElementById('btnGeneratePdf') || document.getElementById('generatePdf') || document.getElementById('exportPdf');
-
-  if (targetBtn && !targetBtn.dataset.pdfPatched) {
-    targetBtn.dataset.pdfPatched = "1";
-    targetBtn.addEventListener('click', async function (e) {
-      try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
-      const old = textOf(targetBtn);
-      try { targetBtn.disabled = true; } catch(_) {}
-      if (targetBtn.tagName !== 'INPUT' && old) targetBtn.textContent = "Generating…";
-      try {
-        const selector = detectPreviewSelector();
-        await exportPreviewToPdf({ selector, filename: "envelopes.pdf" });
-      } catch (err) {
-        alert("PDF error: " + (err && err.message ? err.message : err));
-        console.error(err);
-      } finally {
-        try { targetBtn.disabled = false; } catch(_) {}
-        if (targetBtn.tagName !== 'INPUT' && old) targetBtn.textContent = old;
-      }
-    }, true); // capture phase to beat other handlers that open a popup
-  }
-
-  // Optional keyboard shortcut: Alt+P to export
-  document.addEventListener('keydown', (e) => {
-    if (e.altKey && String(e.key).toLowerCase() === 'p') {
-      e.preventDefault();
-      window.generatePdfNow();
-    }
-  });
-})();
-</script>
-<!-- END: PDF export patch -->
 </body>
 </html>
