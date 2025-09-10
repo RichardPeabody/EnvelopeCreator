@@ -426,5 +426,143 @@
     setStep(1);
   })();
   </script>
+<!-- BEGIN: PDF export patch (no other changes needed) -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  // Inline external images to avoid CORS/tainted canvas issues
+  async function inlineExternalImages(container) {
+    const toDataUrl = (url) =>
+      fetch(url, { mode: "cors", credentials: "omit" })
+        .then((r) => r.blob())
+        .then((blob) => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        }));
+    const imgs = Array.from(container.querySelectorAll("img"))
+      .filter((img) => img.src && !img.src.startsWith("data:"));
+    for (const img of imgs) {
+      try {
+        const dataUrl = await toDataUrl(img.src);
+        img.setAttribute("src", dataUrl);
+        img.setAttribute("crossorigin", "anonymous");
+      } catch (e) {
+        console.warn("Could not inline image for PDF:", img.src, e);
+      }
+    }
+  }
+
+  // Core export
+  async function exportPreviewToPdf({ selector, filename = "envelopes.pdf", margin = 8 }) {
+    if (!window.html2canvas) throw new Error("html2canvas not loaded.");
+    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("jsPDF not loaded.");
+    const { jsPDF } = window.jspdf;
+
+    const container = document.querySelector(selector);
+    if (!container) { alert('PDF export error: preview container not found: ' + selector); return; }
+
+    await inlineExternalImages(container);
+
+    // If your preview has multiple page wrappers, give them class "envelope-page" (or "envelope-preview-page")
+    const pageNodes = container.querySelectorAll(".envelope-page, .envelope-preview-page");
+    const targets = pageNodes.length ? Array.from(pageNodes) : [container];
+
+    const pdf = new jsPDF({ unit: "pt", format: "a4", compress: true });
+    let first = true;
+
+    for (const el of targets) {
+      const prevBg = el.style.backgroundColor;
+      el.style.backgroundColor = "#ffffff";
+      const canvas = await html2canvas(el, {
+        scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        windowWidth: el.scrollWidth || undefined,
+        windowHeight: el.scrollHeight || undefined,
+      });
+      el.style.backgroundColor = prevBg;
+
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const maxW = pw - margin * 2;
+      const maxH = ph - margin * 2;
+      const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+      const w = Math.floor(canvas.width * ratio);
+      const h = Math.floor(canvas.height * ratio);
+      const x = Math.floor((pw - w) / 2);
+      const y = Math.floor((ph - h) / 2);
+
+      if (!first) pdf.addPage();
+      pdf.addImage(img, "JPEG", x, y, w, h, undefined, "FAST");
+      first = false;
+    }
+
+    pdf.save(filename);
+  }
+
+  // Try to find your preview container automatically
+  function detectPreviewSelector() {
+    const candidates = [
+      "#previewPages", "#preview", "#reviewPreview",
+      "#envelopePreview", "#pages", "#wizardPreview"
+    ];
+    for (const sel of candidates) {
+      if (document.querySelector(sel)) return sel;
+    }
+    // Last resort: ask once
+    const typed = prompt('Enter CSS selector for your preview container (e.g. #preview):', '#preview');
+    return typed || "#preview";
+  }
+
+  // Expose a manual trigger if you ever want it
+  window.generatePdfNow = function () {
+    const selector = detectPreviewSelector();
+    return exportPreviewToPdf({ selector, filename: "envelopes.pdf" });
+  };
+
+  // Auto-wire your existing "Generate PDF" button without changing your code
+  function textOf(el){ return (el.textContent || el.value || "").trim().toLowerCase(); }
+  const buttons = Array.from(document.querySelectorAll('button, a[role="button"], input[type="button"], input[type="submit"]'));
+  const targetBtn = buttons.find(b => {
+    const t = textOf(b);
+    return t === "generate pdf" || t === "export pdf" || t === "download pdf" || t === "pdf";
+  }) || document.getElementById('btnGeneratePdf') || document.getElementById('generatePdf') || document.getElementById('exportPdf');
+
+  if (targetBtn && !targetBtn.dataset.pdfPatched) {
+    targetBtn.dataset.pdfPatched = "1";
+    targetBtn.addEventListener('click', async function (e) {
+      try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
+      const old = textOf(targetBtn);
+      try { targetBtn.disabled = true; } catch(_) {}
+      if (targetBtn.tagName !== 'INPUT' && old) targetBtn.textContent = "Generating…";
+      try {
+        const selector = detectPreviewSelector();
+        await exportPreviewToPdf({ selector, filename: "envelopes.pdf" });
+      } catch (err) {
+        alert("PDF error: " + (err && err.message ? err.message : err));
+        console.error(err);
+      } finally {
+        try { targetBtn.disabled = false; } catch(_) {}
+        if (targetBtn.tagName !== 'INPUT' && old) targetBtn.textContent = old;
+      }
+    }, true); // capture phase to beat other handlers that open a popup
+  }
+
+  // Optional keyboard shortcut: Alt+P to export
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && String(e.key).toLowerCase() === 'p') {
+      e.preventDefault();
+      window.generatePdfNow();
+    }
+  });
+})();
+</script>
+<!-- END: PDF export patch -->
 </body>
 </html>
