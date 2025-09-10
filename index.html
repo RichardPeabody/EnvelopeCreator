@@ -3,21 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>C5 Envelope Creator — Wizard</title>
+  <title>Envelope Creator — Wizard</title>
   <style>
     :root { --bg:#f6f7fb; --card:#ffffff; --text:#0f172a; --muted:#64748b; --accent:#2f46ff; --border:#e5e7eb; --shadow:0 10px 30px rgba(15,23,42,.08); }
     [data-theme="dark"]{ --bg:#0b1020; --card:#0f152b; --text:#eef2ff; --muted:#9aa3b2; --border:#1e294a; --shadow:0 10px 30px rgba(0,0,0,.6); }
     *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+    html,body{ height:100%; overflow-x:hidden; }
     body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
-    header{ position:sticky; top:0; z-index:20; background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%); color:white; padding:14px 18px; box-shadow:var(--shadow); }
-    header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; }
+    header{
+      position:sticky; top:0; left:0; right:0; width:100%;
+      z-index:20;
+      background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%);
+      color:white; padding:14px 18px; box-shadow:var(--shadow);
+    }
+    header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; width:100%; }
     h1{ font-size:18px; margin:0; letter-spacing:.2px; font-weight:700; }
 
     main{ max-width:1200px; margin:16px auto; padding:0 16px; display:grid; grid-template-columns:1fr 1.1fr; gap:16px; }
     @media (max-width: 1024px){ main{ grid-template-columns:1fr; } }
 
-    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; overflow:hidden; }
     .card h2{ margin:0 0 12px; font-size:16px; }
     label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; cursor:pointer; }
     input[type="file"], textarea, input[type="number"], input[type="text"], select{ width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:inherit; }
@@ -30,14 +35,14 @@
     .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
     [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
 
-    .steps{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px; }
+    .steps{ display:grid; grid-template-columns:repeat(8, 1fr); gap:8px; margin-bottom:12px; }
     .step{ padding:10px 8px; border-radius:12px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.75; text-align:center; user-select:none; }
     .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
     .step.done{ opacity:1; background:#bbf7d0; color:#064e3b; }
 
     .previewWrap{ position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); background: repeating-conic-gradient(#0000 0 90deg, #f3f4f6 0 180deg) 50%/20px 20px; }
     [data-theme="dark"] .previewWrap{ background: repeating-conic-gradient(#0000 0 90deg, #111827 0 180deg) 50%/20px 20px; }
-    canvas{ display:block; width:100%; height:auto; background:white; }
+    canvas{ display:block; width:100%; height:auto; background:white; transition:transform .2s ease; transform-origin:center center; }
 
     .zoombar{ display:flex; align-items:center; gap:10px; margin-top:10px; color:var(--muted); }
     input[type="range"]{ width:220px; }
@@ -51,12 +56,56 @@
     .muted{ color:var(--muted); font-size:12px; }
     .drop{ margin-top:8px; padding:10px; border:1px dashed var(--border); border-radius:10px; text-align:center; }
     .drop.drag{ border-color: var(--accent); background: rgba(47,70,255,.05); }
+
+    /* Intro animated background */
+    .introWrap{
+      position:relative; padding:24px 24px 48px; /* extra bottom padding so button clears paper */
+      background: radial-gradient(1200px 600px at -10% -10%, #eef1ff, transparent 60%),
+                  radial-gradient(1000px 500px at 110% 10%, #dde5ff, transparent 60%);
+    }
+
+    /* Printer animation with rollers + typing lines */
+    .printer { width:320px; height:200px; background:linear-gradient(180deg,#2d2d32,#18181c); border-radius:14px; margin:20px auto 28px; position:relative; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+    .printer::after{ content:''; position:absolute; left:50%; transform:translateX(-50%); bottom:-10px; width:220px; height:14px; background:rgba(0,0,0,.35); border-radius:50%; filter:blur(4px); }
+    .slot{ position:absolute; top:18px; left:20px; right:20px; height:18px; background:#0d0d10; border-radius:8px; box-shadow: inset 0 2px 6px rgba(255,255,255,.08), inset 0 -2px 6px rgba(0,0,0,.6); }
+    .roller{ position:absolute; top:48px; left:40px; right:40px; height:8px; background:repeating-linear-gradient(90deg, #5b5b60 0 10px, #3a3a3f 10px 20px); border-radius:6px; filter:brightness(1.1); animation:roll 1s linear infinite; }
+    @keyframes roll{ to{ background-position-x:20px; } }
+    .paper { width:250px; height:160px; background:#fff; border:2px solid #e5e7eb; position:absolute; top:28px; left:50%; transform:translateX(-50%); animation:print 4s infinite ease-in-out; border-radius:6px; overflow:hidden; pointer-events:none; }
+    .envelopeArt{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; opacity:.95; }
+    .envelopeArt svg{ width:85%; height:auto; }
+    .addrLines{ position:absolute; top:64px; left:56px; right:30px; height:60px; }
+    .line{ height:10px; background:#1f2937; opacity:.85; margin:6px 0; width:0; border-radius:2px; animation: type 3s steps(20,end) infinite; }
+    .line:nth-child(2){ animation-delay:.4s; width:0; }
+    .line:nth-child(3){ animation-delay:.8s; width:0; }
+    @keyframes type{
+      0%{ width:0; }
+      60%{ width:75%; }
+      100%{ width:75%; }
+    }
+    @keyframes print {
+      0%{ transform:translate(-50%, -40px); opacity:0; }
+      10%{ opacity:1; }
+      50%{ transform:translate(-50%, 60px); }
+      75%{ transform:translate(-50%, 12px); }
+      100%{ transform:translate(-50%, -40px); opacity:0; }
+    }
+
+    /* Confetti */
+    .confetti{ position:absolute; inset:0; pointer-events:none; }
+    .confetti i{
+      position:absolute; width:8px; height:8px; background:var(--accent);
+      top:50%; left:50%; transform:translate(-50%,-50%);
+      opacity:0; border-radius:2px;
+    }
+
+    /* Ensure the Start toolbar sits above animated content */
+    #introStartBar{ position:relative; z-index:2; margin-top:22px; }
   </style>
 </head>
 <body>
   <header>
     <div class="row">
-      <h1>✉️ C5 Envelope Creator — Wizard</h1>
+      <h1>✉️ Envelope Creator — Wizard</h1>
       <div class="controls">
         <button id="themeToggle" class="btn secondary" title="Toggle dark mode">Toggle theme</button>
       </div>
@@ -67,75 +116,139 @@
     <!-- Wizard Column -->
     <section class="card" id="wizard">
       <div class="steps">
-        <div class="step" id="s1">1. Mode</div>
-        <div class="step" id="s2">2. Data</div>
-        <div class="step" id="s3">3. Font</div>
-        <div class="step" id="s4">4. Return</div>
-        <div class="step" id="s5">5. Options</div>
-        <div class="step" id="s6">6. Preview & PDF</div>
+        <div class="step" id="s0">0. Intro</div>
+        <div class="step" id="s1">1. Envelope</div>
+        <div class="step" id="s2">2. Mode</div>
+        <div class="step" id="s3">3. Data</div>
+        <div class="step" id="s4">4. Font</div>
+        <div class="step" id="s5">5. Return</div>
+        <div class="step" id="s6">6. Options</div>
+        <div class="step" id="s7">7. Preview & PDF</div>
       </div>
 
-      <!-- Step 1: Mode -->
-      <div id="step1">
+      <!-- Step 0: Intro -->
+      <div id="step0">
+        <div class="introWrap">
+          <h2 style="position:relative; z-index:1;">Welcome to Envelope Creator</h2>
+          <p style="position:relative; z-index:1;">Create and print envelopes with ease. Choose your envelope type, add addresses, and generate ready-to-print PDFs.</p>
+          <div class="printer">
+            <div class="slot"></div>
+            <div class="roller"></div>
+            <div class="paper">
+              <div class="envelopeArt">
+                <!-- FRONT of envelope with UK-style stamp + frank -->
+                <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <!-- Envelope body -->
+                  <rect x="10" y="20" width="180" height="80" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+                  <!-- Address guide box (subtle) -->
+                  <rect x="40" y="48" width="100" height="44" rx="2" fill="none" stroke="#e5e7eb" stroke-width="1.5" stroke-dasharray="4 4"/>
+                  <!-- Stamp: red with scalloped white border + crown silhouette -->
+                  <rect x="148" y="22" width="30" height="30" rx="3" fill="#ef4444" stroke="#ffffff" stroke-width="3"/>
+                  <path d="M152 41 c4 -8 9 -12 13 -12 s9 4 13 12" fill="none" stroke="#ffffff" stroke-width="2"/>
+                  <path d="M158 36 l4 -6 l4 6" fill="none" stroke="#ffffff" stroke-width="2"/>
+                  <!-- Circular postmark -->
+                  <circle cx="165" cy="38" r="13" fill="none" stroke="#475569" stroke-width="1.5"/>
+                  <!-- Longer wavy cancellation lines -->
+                  <path d="M118 34 C128 30, 138 30, 148 34 S168 38, 178 34" stroke="#64748b" stroke-width="1.5" fill="none"/>
+                  <path d="M118 38 C128 34, 138 34, 148 38 S168 42, 178 38" stroke="#64748b" stroke-width="1.5" fill="none"/>
+                  <path d="M118 42 C128 38, 138 38, 148 42 S168 46, 178 42" stroke="#64748b" stroke-width="1.5" fill="none"/>
+                </svg>
+              </div>
+              <div class="addrLines">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+              </div>
+            </div>
+            <div class="confetti" id="confetti"></div>
+          </div>
+          <div class="toolbar" id="introStartBar" style="justify-content:center;">
+            <button id="next0" class="btn" type="button">Start ▷</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1: Envelope type -->
+      <div id="step1" class="hidden">
+        <h2>Select Envelope Type</h2>
+        <label><input type="radio" name="envType" id="envC5" checked /> C5 (229 × 162 mm)</label>
+        <label><input type="radio" name="envType" id="envDL" /> DL (220 × 110 mm)</label>
+        <div class="toolbar" style="margin-top:14px;">
+          <button id="back1" class="btn secondary" type="button">◁ Back</button>
+          <button id="nextEnv" class="btn" type="button">Next ▷</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Mode -->
+      <div id="step2" class="hidden">
         <h2>Single address or multiple addresses?</h2>
-        <label><input type="radio" name="mode" id="modeSingle" /> Single address</label>
+        <label><input type="radio" name="mode" id="modeSingle" /> Single address (add multiple one by one)</label>
         <label><input type="radio" name="mode" id="modeMulti" /> Multiple addresses (upload a spreadsheet)</label>
         <div id="singleWrap" class="hidden" style="margin-top:10px;">
-          <label>Enter the recipient name and address (one line per row)</label>
-          <textarea id="singleAddress" placeholder="Full Name&#10;Address line 1&#10;Address line 2&#10;Town/City&#10;Postcode&#10;Country"></textarea>
+          <label>Enter recipient(s). One address per block.</label>
+          <div id="singleList">
+            <textarea class="singleAddress" placeholder="Full Name&#10;Address line 1&#10;Address line 2&#10;Town/City&#10;Postcode&#10;Country"></textarea>
+          </div>
+          <button id="addSingle" class="btn secondary" type="button" style="margin-top:8px;">+ Add another</button>
         </div>
         <div id="errMode" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
-          <button id="nextMode" class="btn" disabled>Next ▷</button>
+          <button id="back2a" class="btn secondary" type="button">◁ Back</button>
+          <button id="nextMode" class="btn" type="button" disabled>Next ▷</button>
         </div>
       </div>
 
-      <!-- Step 2: Data (multi only) -->
-      <div id="step2" class="hidden">
+      <!-- Step 3: Data (multi only) -->
+      <div id="step3" class="hidden">
         <h2>Upload your data (.xlsx or .csv)</h2>
-        <p class="muted" style="margin-top:-6px">Column 1 = Full Name, Columns 2+ = Address lines</p>
         <input id="fileXlsx" type="file" accept=".xlsx,.csv" />
         <div class="drop" id="drop">or drag a file here</div>
-        <label style="margin-top:12px">Has header row?</label>
-        <select id="hasHeader"><option value="yes">Yes</option><option value="no">No</option></select>
+        <!-- Header-row explainer + dropdown -->
+        <label style="margin-top:12px;">Does your data have a header row?</label>
+        <p class="muted" style="margin-top:-6px;">A header row is when the top row of a spreadsheet has labels to describe what data lies below in each column</p>
+        <select id="hasHeader">
+          <option value="yes">Yes</option>
+          <option value="no" selected>No</option>
+        </select>
         <div id="err1" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
-          <button id="next1" class="btn" disabled>Next ▷</button>
+          <button id="back3a" class="btn secondary" type="button">◁ Back</button>
+          <button id="next1" class="btn" type="button" disabled>Next ▷</button>
         </div>
       </div>
 
-      <!-- Step 3: Font -->
-      <div id="step3" class="hidden">
+      <!-- Step 4: Font -->
+      <div id="step4" class="hidden">
         <h2>Font</h2>
         <label><input type="checkbox" id="useCustomFont" /> Use a custom TTF (upload below)</label>
         <input id="fileTtf" type="file" accept=".ttf" class="hidden" />
         <p class="muted">If unchecked, the PDF uses built-in Helvetica and the preview uses your system font.</p>
         <div id="err2" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
-          <button id="back2" class="btn secondary">◁ Back</button>
-          <button id="next2" class="btn">Next ▷</button>
+          <button id="back2" class="btn secondary" type="button">◁ Back</button>
+          <button id="next2" class="btn" type="button">Next ▷</button>
         </div>
         <div id="statusInline" class="status" style="margin-top:8px;"></div>
       </div>
 
-      <!-- Step 4: Return (optional) -->
-      <div id="step4" class="hidden">
+      <!-- Step 5: Return (optional) -->
+      <div id="step5" class="hidden">
         <h2>Return Address (top-left, optional)</h2>
         <label><input type="checkbox" id="useReturn" /> Print a return address at the top left</label>
         <div id="returnBlockWrap" class="hidden">
           <label>Return address (each line on its own row)</label>
-          <textarea id="returnBlock" placeholder="Return Address:&#10;Your Name&#10;Street&#10;Town, County, POSTCODE, Country"></textarea>
+          <textarea id="returnBlock" placeholder="Your Name&#10;Street&#10;Town, County, POSTCODE, Country"></textarea>
           <label><input type="checkbox" id="rememberReturn" /> Remember this return address on this device</label>
         </div>
         <div id="err3" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
-          <button id="back3" class="btn secondary">◁ Back</button>
-          <button id="next3" class="btn">Next ▷</button>
+          <button id="back3" class="btn secondary" type="button">◁ Back</button>
+          <button id="next3" class="btn" type="button">Next ▷</button>
         </div>
       </div>
 
-      <!-- Step 5: Options -->
-      <div id="step5" class="hidden">
+      <!-- Step 6: Options -->
+      <div id="step6" class="hidden">
         <h2>Print Options</h2>
         <div class="row2">
           <div>
@@ -156,38 +269,42 @@
             <label>Return font size (pt)</label>
             <input id="fsReturn" type="number" value="10" min="6" max="24" />
           </div>
+          <div style="grid-column:1 / -1;">
+            <label><input type="checkbox" id="rotate180" /> Rotate output 180° (fix printer flip / Edge)</label>
+            <p class="muted" style="margin-top:4px;">If your printer flips the envelope compared to Chrome, turn this on. The preview rotates to match the PDF.</p>
+          </div>
         </div>
         <div id="err4" class="error hidden"></div>
         <div class="toolbar" style="margin-top:14px;">
-          <button id="back4" class="btn secondary">◁ Back</button>
-          <button id="toPreview" class="btn">Next ▷</button>
+          <button id="back4" class="btn secondary" type="button">◁ Back</button>
+          <button id="toPreview" class="btn" type="button">Next ▷</button>
         </div>
       </div>
 
-      <!-- Step 6: Preview & PDF -->
-      <div id="step6" class="hidden">
+      <!-- Step 7: Preview & PDF -->
+      <div id="step7" class="hidden">
         <h2>Preview & PDF</h2>
         <div class="toolbar" id="controlBar" style="margin-bottom:10px;">
-          <button id="btnBackPreview" class="btn secondary" title="Go back to settings">◁ Back to settings</button>
+          <button id="btnBackPreview" class="btn secondary" type="button" title="Go back to settings">◁ Back to settings</button>
           <span class="status" id="status">Ready.</span>
           <span id="counter" class="muted" style="margin-left:auto"></span>
-          <button id="btnGenerate" class="btn" disabled>⤓ Generate PDF</button>
+          <button id="btnGenerate" class="btn" type="button" disabled>⤓ Generate PDF</button>
         </div>
         <div id="statusPreview" class="status" style="margin:8px 0;"></div>
-        <div class="zoombar">
-          <span>Zoom</span>
-          <input id="zoom" type="range" min="60" max="160" value="100" />
-          <span id="zoomLabel">100%</span>
-        </div>
       </div>
     </section>
 
     <!-- Preview Column -->
     <section class="card hidden" id="previewCard">
-      <h2>Live Preview (C5 landscape, 229 × 162 mm)</h2>
-      <div class="toolbar" id="reviewBar" style="margin-bottom:10px;">
-        <button id="btnPrev" class="btn review" disabled title="Previous address in review">Review ◀ Prev</button>
-        <button id="btnNext" class="btn review" disabled title="Next address in review">Review Next ▶</button>
+      <h2>Live Preview (<span id="envLabel">C5</span> landscape)</h2>
+      <div class="toolbar" id="reviewBar" style="margin-bottom:0;">
+        <button id="btnPrev" class="btn review" type="button" disabled title="Previous address in review">Review ◀ Prev</button>
+        <button id="btnNext" class="btn review" type="button" disabled title="Next address in review">Review Next ▶</button>
+      </div>
+      <div class="zoombar">
+        <span>Zoom</span>
+        <input id="zoom" type="range" min="60" max="160" value="100" />
+        <span id="zoomLabel">100%</span>
       </div>
       <div class="previewWrap" id="previewWrap">
         <canvas id="preview" width="2290" height="1620"></canvas>
@@ -201,47 +318,73 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
-  (function(){
+  window.addEventListener('DOMContentLoaded', () => {
     // ===== Helpers & state =====
     const MM_PER_IN = 25.4, PT_PER_IN = 72;
-    const ENVELOPE_W_MM = 229, ENVELOPE_H_MM = 162; // C5
-    const REC_X_IN = 2, REC_TOP_IN = 3;          // recipient offset (inches from top-left)
-    const RET_X_IN = 0.5, RET_Y_IN = 0.5;        // return offset (inches from top-left)
-    let pxPerMM = 10; // canvas: 2290x1620 ⇒ ~10 px/mm
+    const ENVELOPES = { C5:{W_MM:229,H_MM:162}, DL:{W_MM:220,H_MM:110} };
+    let envType = 'C5';
 
+    const REC_X_IN = 2;                      // left offset (inches)
+    const REC_TOP_IN_MAP = { C5: 2.5, DL: 1.5 }; // top offset by envelope type
+    const RET_X_IN = 0.5, RET_Y_IN = 0.5;   // return offset (inches)
+
+    let pxPerMM = 10; // canvas scale
     const $ = s => document.querySelector(s);
     const els = {
-      steps:[ $('#s1'),$('#s2'),$('#s3'),$('#s4'),$('#s5'),$('#s6') ],
-      step1:$('#step1'), step2:$('#step2'), step3:$('#step3'), step4:$('#step4'), step5:$('#step5'), step6:$('#step6'),
-      modeSingle:$('#modeSingle'), modeMulti:$('#modeMulti'), singleWrap:$('#singleWrap'), singleAddress:$('#singleAddress'), nextMode:$('#nextMode'), errMode:$('#errMode'),
-      fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'), drop:$('#drop'),
+      steps:[ $('#s0'),$('#s1'),$('#s2'),$('#s3'),$('#s4'),$('#s5'),$('#s6'),$('#s7') ],
+      step0:$('#step0'), step1:$('#step1'), step2:$('#step2'), step3:$('#step3'), step4:$('#step4'), step5:$('#step5'), step6:$('#step6'), step7:$('#step7'),
+      next0:$('#next0'),
+      envC5:$('#envC5'), envDL:$('#envDL'), nextEnv:$('#nextEnv'), back1:$('#back1'),
+      modeSingle:$('#modeSingle'), modeMulti:$('#modeMulti'), singleWrap:$('#singleWrap'), singleList:$('#singleList'), addSingle:$('#addSingle'), nextMode:$('#nextMode'), errMode:$('#errMode'), back2a:$('#back2a'),
+      fileXlsx:$('#fileXlsx'), hasHeader:$('#hasHeader'), next1:$('#next1'), err1:$('#err1'), drop:$('#drop'), back3a:$('#back3a'),
       useCustomFont:$('#useCustomFont'), fileTtf:$('#fileTtf'), back2:$('#back2'), next2:$('#next2'), err2:$('#err2'),
       useReturn:$('#useReturn'), returnBlockWrap:$('#returnBlockWrap'), returnBlock:$('#returnBlock'), rememberReturn:$('#rememberReturn'), back3:$('#back3'), next3:$('#next3'), err3:$('#err3'),
-      fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), toPreview:$('#toPreview'), err4:$('#err4'),
+      fsRecipient:$('#fsRecipient'), fsReturn:$('#fsReturn'), inkPreset:$('#inkPreset'), back4:$('#back4'), toPreview:$('#toPreview'), err4:$('#err4'), rotate180:$('#rotate180'),
       status:$('#status'), counter:$('#counter'), btnBackPreview:$('#btnBackPreview'), btnPrev:$('#btnPrev'), btnNext:$('#btnNext'), btnGenerate:$('#btnGenerate'),
       zoom:$('#zoom'), zoomLabel:$('#zoomLabel'),
-      wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'),
-      themeToggle:$('#themeToggle')
+      wrap:$('#previewWrap'), canvas:$('#preview'), previewCard:$('#previewCard'), envLabel:$('#envLabel'),
+      themeToggle:$('#themeToggle'), confetti:$('#confetti')
     };
 
-    const ctx = els.canvas.getContext('2d');
     const mmToPx = mm => Math.round(mm * pxPerMM);
     const inToPx = inch => Math.round(inch * pxPerMM * MM_PER_IN);
     const mmToPt = mm => (mm / MM_PER_IN) * PT_PER_IN;
     const ptToPx = pt => pt * ((pxPerMM * MM_PER_IN) / PT_PER_IN); // pt → px for preview
+    const mmToPtDoc = mm => (mm / MM_PER_IN) * PT_PER_IN; // duplicate for clarity
+
+    // Track current step index for reliable back behavior
+    function currentStepIndex(){
+      const blocks=[els.step0,els.step1,els.step2,els.step3,els.step4,els.step5,els.step6,els.step7];
+      return blocks.findIndex(b => !b.classList.contains('hidden'));
+    }
+    function updateProgress(n){
+      els.steps.forEach((s,i)=>{
+        s.classList.remove('done','active');
+        if(i===n) s.classList.add('active');
+        if(i < n) s.classList.add('done');
+      });
+    }
+    function setStep(n){
+      const blocks=[els.step0,els.step1,els.step2,els.step3,els.step4,els.step5,els.step6,els.step7];
+      blocks.forEach((c,i)=> c.classList.toggle('hidden', i!==n));
+      updateProgress(n);
+      els.previewCard.classList.toggle('hidden', n!==7);
+      setStatus(`On step ${n}`);
+      if(n===7){ drawPreview(); updateButtons(); applyZoom(); applyRotationPreview(); }
+      attachBackHandlers();
+    }
 
     function setStatus(msg){
-      if(els.status) els.status.textContent = msg;            // Step 6 pill (transient)
-      const si = document.getElementById('statusInline');     // Step 3 inline pill
+      if(els.status) els.status.textContent = msg;
+      const si = document.getElementById('statusInline');
       if (si) si.textContent = msg;
     }
     function setFontStatus(msg){
-      const si = document.getElementById('statusInline');     // Step 3 inline pill
+      const si = document.getElementById('statusInline');
       if (si) si.textContent = msg;
-      const sp = document.getElementById('statusPreview');    // Step 6 persistent line
+      const sp = document.getElementById('statusPreview');
       if (sp) sp.textContent = msg;
     }
-
     const parseColourName = name => {
       switch(name){
         case 'blueblack': return {r:0,g:0,b:77};
@@ -252,21 +395,31 @@
       }
     };
 
-    // match canvas to mm
-    (function resizeCanvas(){ els.canvas.width = mmToPx(ENVELOPE_W_MM); els.canvas.height = mmToPx(ENVELOPE_H_MM); })();
-
-    let rows = []; let idx = 0; let mode = null;
-    let ttfBytes = null; let fontName = null; let customFontLoaded = false; let ttfFileName = null; let ttfBase64 = null;
-
-    function updateProgress(n){
-      els.steps.forEach((s,i)=>{ s.classList.remove('done','active'); if(i===n-1) s.classList.add('active'); if(i < n-1) s.classList.add('done'); });
+    // ===== Dynamic envelope sizing =====
+    function applyEnvelope(type){
+      envType = type;
+      const W_MM = ENVELOPES[envType].W_MM;
+      const H_MM = ENVELOPES[envType].H_MM;
+      els.canvas.width = mmToPx(W_MM);
+      els.canvas.height = mmToPx(H_MM);
+      els.envLabel.textContent = envType;
+      drawPreview();
     }
-    function setStep(n){
-      [els.step1,els.step2,els.step3,els.step4,els.step5,els.step6].forEach((c,i)=> c.classList.toggle('hidden', i!==n-1));
-      updateProgress(n);
-      els.previewCard.classList.toggle('hidden', n!==6);
-      setStatus(`On step ${n}`);
-      if(n===6){ drawPreview(); updateButtons(); applyZoom(); }
+
+    // ===== Wizard nav =====
+    let rows = []; let idx = 0; let mode = null;
+    let customFontLoaded = false; let ttfBase64 = null;
+
+    function attachBackHandlers(){
+      const buttons = ['back1','back2a','back3a','back2','back3','back4','btnBackPreview']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+      buttons.forEach(btn => {
+        btn.onclick = () => {
+          const i = currentStepIndex();
+          if(i > 0) setStep(i - 1);
+        };
+      });
     }
 
     function updateButtons(){
@@ -284,37 +437,105 @@
     });
 
     // Zoom
-    function applyZoom(){ const z=parseInt(els.zoom.value,10)/100; els.wrap.style.transform=`scale(${z})`; els.wrap.style.transformOrigin='top left'; els.zoomLabel.textContent=`${Math.round(z*100)}%`; }
+    function applyZoom(){
+      const z=parseInt(els.zoom.value,10)/100;
+      els.wrap.style.transform=`scale(${z})`;
+      els.wrap.style.transformOrigin='top left';
+      els.zoomLabel.textContent=`${Math.round(z*100)}%`;
+    }
     els.zoom.addEventListener('input', applyZoom);
 
-    // Step 1: Mode
-    function parseSingleIntoRows(){
-      const lines = els.singleAddress.value.replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
-      rows = lines.length ? [{ name: lines[0], lines: lines.slice(1) }] : [];
+    function applyRotationPreview(){
+      els.canvas.style.transform = (els.rotate180 && els.rotate180.checked) ? 'rotate(180deg)' : 'none';
+    }
+    if(els.rotate180){ els.rotate180.addEventListener('change', ()=>{ applyRotationPreview(); drawPreview(); }); }
+
+    // Step 0: Intro
+    function burstConfetti(){
+      const c = els.confetti;
+      if(!c) return;
+      c.innerHTML = '';
+      for(let i=0;i<24;i++){
+        const dot = document.createElement('i');
+        const angle = (Math.PI*2) * (i/24);
+        const dist = 80 + Math.random()*40;
+        const x = Math.cos(angle)*dist;
+        const y = Math.sin(angle)*dist;
+        dot.style.background = `hsl(${Math.round(200+ i*6)}, 80%, 55%)`;
+        dot.style.transition = 'transform 700ms ease, opacity 700ms ease';
+        c.appendChild(dot);
+        requestAnimationFrame(()=>{
+          dot.style.opacity = '1';
+          dot.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${Math.random()*180}deg)`;
+          setTimeout(()=>{ dot.style.opacity='0'; }, 500);
+        });
+      }
+      setTimeout(()=>{ c.innerHTML=''; }, 900);
+    }
+    els.next0.addEventListener('click', ()=>{ burstConfetti(); setTimeout(()=> setStep(1), 150); });
+
+    // Step 1: Envelope type
+    function readEnvSelection(){
+      applyEnvelope(els.envDL.checked ? 'DL' : 'C5');
+    }
+    els.envC5.addEventListener('change', readEnvSelection);
+    els.envDL.addEventListener('change', readEnvSelection);
+    els.nextEnv.addEventListener('click', ()=>{ readEnvSelection(); setStep(2); });
+
+    // Step 2: Mode
+    function parseSinglesIntoRows(){
+      const blocks = Array.from(els.singleList.querySelectorAll('textarea.singleAddress'));
+      const out = [];
+      blocks.forEach(area=>{
+        const lines = area.value.replace(/\r/g,'').split('\n').map(s=>s.trim());
+        const nonEmpty = lines.filter(Boolean);
+        if(nonEmpty.length>0){
+          const name = nonEmpty[0];
+          const addr = nonEmpty.slice(1);
+          out.push({ name, lines: addr });
+        }
+      });
+      rows = out;
+      idx = 0;
       updateButtons();
     }
+    function addSingleBlock(){
+      const ta = document.createElement('textarea');
+      ta.className = 'singleAddress';
+      ta.placeholder = "Full Name\nAddress line 1\nAddress line 2\nTown/City\nPostcode\nCountry";
+      ta.addEventListener('input', ()=>{ if(mode==='single'){ parseSinglesIntoRows(); }});
+      els.singleList.appendChild(ta);
+    }
+    els.addSingle.addEventListener('click', (e)=>{ e.preventDefault(); addSingleBlock(); });
+
     function validateMode(){
       if(els.modeSingle.checked){
-        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled=false; parseSingleIntoRows();
+        mode='single'; els.singleWrap.classList.remove('hidden'); els.nextMode.disabled=false; parseSinglesIntoRows();
       } else if(els.modeMulti.checked){
         mode='multi'; els.singleWrap.classList.add('hidden'); els.nextMode.disabled=false; rows=[]; updateButtons();
       } else { els.nextMode.disabled=true; }
     }
-    els.modeSingle.addEventListener('change', ()=>{ validateMode(); });
-    els.modeMulti.addEventListener('change', ()=>{ validateMode(); });
-    els.singleAddress.addEventListener('input', ()=>{ if(mode==='single') parseSingleIntoRows(); });
+    ['change','input'].forEach(ev=>{
+      els.modeSingle.addEventListener(ev, validateMode);
+      els.modeMulti.addEventListener(ev, validateMode);
+    });
+    els.singleList.addEventListener('input', ()=>{ if(mode==='single') parseSinglesIntoRows(); });
+    // seed first block with input listener
+    els.singleList.querySelector('textarea.singleAddress').addEventListener('input', ()=>{ if(mode==='single') parseSinglesIntoRows(); });
+
     els.nextMode.addEventListener('click', ()=>{
-      if(mode==='single'){ parseSingleIntoRows(); setStep(3); }
-      else if(mode==='multi'){ setStep(2); }
+      if(mode==='single'){ parseSinglesIntoRows(); setStep(4); }
+      else if(mode==='multi'){ setStep(3); }
       else { setStatus('Select a mode to continue.'); }
     });
+    els.back2a.addEventListener('click', ()=> setStep(1));
 
-    // Step 2: CSV/XLSX
+    // Step 3: CSV/XLSX
     function parseCSV(text){
       const out=[]; let cur=''; let row=[]; let inQ=false;
       for(let i=0;i<text.length;i++){
         const ch=text[i];
-        if(ch==='\"'){ if(inQ && text[i+1]==='\"'){ cur+='\"'; i++; } else { inQ=!inQ; } }
+        if(ch=='"'){ if(inQ && text[i+1]=='"'){ cur+='"'; i++; } else { inQ=!inQ; } }
         else if(ch===',' && !inQ){ row.push(cur); cur=''; }
         else if((ch==='\n'||ch==='\r') && !inQ){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cur); out.push(row); row=[]; cur=''; }
         else { cur+=ch; }
@@ -352,9 +573,10 @@
     ;['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
     ;['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
     els.drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files && e.dataTransfer.files[0]; if(f) handleDataFile(f); });
-    els.next1.addEventListener('click', ()=> setStep(3));
+    els.next1.addEventListener('click', ()=> setStep(4));
+    els.back3a.addEventListener('click', ()=> setStep(2));
 
-    // Step 3: Font (auto-enable on upload; embed same font in PDF)
+    // Step 4: Font (auto-enable on upload; embed same font in PDF)
     function abToBase64(buf){
       let binary = '';
       const bytes = new Uint8Array(buf);
@@ -368,32 +590,31 @@
     els.useCustomFont.addEventListener('change', ()=>{
       const on=els.useCustomFont.checked;
       els.fileTtf.classList.toggle('hidden', !on);
-      if(!on){ ttfBytes=null; ttfBase64=null; fontName=null; customFontLoaded=false; ttfFileName=null; }
+      if(!on){ ttfBase64=null; customFontLoaded=false; window.__fontName=null; }
     });
     els.fileTtf.addEventListener('change', async e=>{
       const file=e.target.files && e.target.files[0];
       if(!file) return;
       try{
         if(!els.useCustomFont.checked){ els.useCustomFont.checked = true; els.fileTtf.classList.remove('hidden'); }
-        ttfBytes=await file.arrayBuffer();
-        ttfBase64 = abToBase64(ttfBytes);
-        ttfFileName = file.name || 'CustomFont.ttf';
+        const buf=await file.arrayBuffer();
+        ttfBase64 = abToBase64(buf);
         // Load for preview
-        const url=URL.createObjectURL(new Blob([ttfBytes],{type:'font/ttf'}));
-        fontName=`UploadedFont_${Math.random().toString(36).slice(2)}`;
-        const face=new FontFace(fontName,`url(${url})`);
+        const url=URL.createObjectURL(new Blob([buf],{type:'font/ttf'}));
+        const nameHint=(file.name||'CustomFont.ttf').replace(/\W+/g,'_');
+        window.__fontName = `UploadedFont_${nameHint}_${Math.random().toString(36).slice(2)}`;
+        const face=new FontFace(window.__fontName,`url(${url})`);
         await face.load();
         document.fonts.add(face);
-        try{ await document.fonts.ready; await document.fonts.load(`24px ${fontName}`);}catch(_){}
+        try{ await document.fonts.ready; await document.fonts.load(`24px ${window.__fontName}`);}catch(_){}
         customFontLoaded=true;
-        setFontStatus(`Custom font loaded for preview: ${ttfFileName}. It will be embedded in the PDF.`);
+        setFontStatus(`Custom font loaded for preview: ${file.name}. It will be embedded in the PDF.`);
         drawPreview();
       }catch(err){
         els.err2.textContent='Could not load font file.';
         els.err2.classList.remove('hidden');
       }
     });
-    els.back2.addEventListener('click', ()=> setStep( mode==='multi' ? 2 : 1 ));
     els.next2.addEventListener('click', ()=>{
       if(els.useCustomFont.checked && !customFontLoaded){
         els.err2.textContent='Please upload a TTF or untick the option.';
@@ -401,10 +622,11 @@
         return;
       }
       els.err2.classList.add('hidden');
-      setStep(4);
+      setStep(5);
     });
+    els.back2.addEventListener('click', ()=> setStep(3));
 
-    // Step 4: Return
+    // Step 5: Return
     try{
       const saved=localStorage.getItem('envelope_return_v1');
       if(saved){ els.returnBlock.value=saved; }
@@ -427,7 +649,7 @@
         try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(_){}
       }
     });
-    els.back3.addEventListener('click', ()=> setStep(3));
+    els.back3.addEventListener('click', ()=> setStep(4));
     els.next3.addEventListener('click', ()=>{
       if(els.useReturn.checked && !els.returnBlock.value.trim()){
         els.err3.textContent='Please enter the return address or untick the option.';
@@ -435,43 +657,53 @@
         return;
       }
       els.err3.classList.add('hidden');
-      setStep(5);
+      setStep(6);
     });
 
-    // Step 5
-    els.back4.addEventListener('click', ()=> setStep(4));
-    els.toPreview.addEventListener('click', ()=>{ setStep(6); });
+    // Step 6
+    els.back4.addEventListener('click', ()=> setStep(5));
+    els.toPreview.addEventListener('click', ()=>{ setStep(7); });
 
     // Preview (pt→px, same font as PDF when uploaded)
     function drawPreview(){
-      const W=els.canvas.width, H=els.canvas.height;
+      const W_MM = ENVELOPES[envType].W_MM;
+      const H_MM = ENVELOPES[envType].H_MM;
+      const canvas = els.canvas;
+      canvas.width = mmToPx(W_MM);
+      canvas.height = mmToPx(H_MM);
+
+      const W=canvas.width, H=canvas.height;
+      const ctx = canvas.getContext('2d');
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,W-1,H-1);
 
       const namePt=Number(els.fsRecipient.value)||24;
       const retPt=Number(els.fsReturn.value)||10;
       const namePx = ptToPx(namePt);
       const retPx = ptToPx(retPt);
-      const previewFont = customFontLoaded ? `${Math.round(namePx)}px ${fontName}, Arial, sans-serif` : `${Math.round(namePx)}px Arial, sans-serif`;
-      const previewFontReturn = customFontLoaded ? `${Math.round(retPx)}px ${fontName}, Arial, sans-serif` : `${Math.round(retPx)}px Arial, sans-serif`;
+      const previewFont = (customFontLoaded && window.__fontName) ? `${Math.round(namePx)}px ${window.__fontName}, Arial, sans-serif` : `${Math.round(namePx)}px Arial, sans-serif`;
+      const previewFontReturn = (customFontLoaded && window.__fontName) ? `${Math.round(retPx)}px ${window.__fontName}, Arial, sans-serif` : `${Math.round(retPx)}px Arial, sans-serif`;
       const ink = parseColourName(els.inkPreset.value);
 
-      // Return
+      // Return (with label)
       if(els.useReturn.checked && els.returnBlock.value.trim()){
         ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
         const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retPx;
+        ctx.fillText('Return Address:', retLeft, y);
+        y += Math.round(retPx*1.2);
         const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
         for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retPx*1.2); }
       }
 
-      // Recipient
+      // Recipient (top depends on envelope type)
+      const recTopIn = REC_TOP_IN_MAP[envType] || 1.5;
       ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont;
-      const recX=inToPx(REC_X_IN); let recY=inToPx(REC_TOP_IN) + namePx;
+      const recX=inToPx(REC_X_IN); let recY=inToPx(recTopIn) + namePx;
       const rcp=rows[idx];
       if(rcp){
         if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(namePx*1.1); }
         for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(namePx*1.1); }
       } else {
-        ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Upload .xlsx/.csv (Step 2) to continue…',16,32);
+        ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Enter addresses (Single) or upload .xlsx/.csv (Multi)…',16,32);
       }
 
       els.counter.textContent = rows.length?`Preview ${idx+1} / ${rows.length}`:'';
@@ -479,18 +711,18 @@
 
     els.btnPrev.addEventListener('click', ()=>{ if(idx>0){ idx--; drawPreview(); updateButtons(); } });
     els.btnNext.addEventListener('click', ()=>{ if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); } });
-    els.btnBackPreview.addEventListener('click', ()=> setStep(5));
+    els.btnBackPreview.addEventListener('click', ()=> setStep(6));
 
-    // PDF via jsPDF with embedded TTF
+    // PDF via jsPDF with per-text rotation option
     async function generatePDF(){
       if(rows.length===0){ setStatus('No addresses to print.'); return; }
       const { jsPDF } = window.jspdf;
-      const pageWidth  = mmToPt(ENVELOPE_W_MM);
-      const pageHeight = mmToPt(ENVELOPE_H_MM);
+      const pageWidth  = mmToPt(ENVELOPES[envType].W_MM);
+      const pageHeight = mmToPt(ENVELOPES[envType].H_MM);
       const pdf = new jsPDF({orientation:'landscape', unit:'pt', format:[pageWidth, pageHeight]});
 
       const recXpt     = REC_X_IN * PT_PER_IN;
-      const recTopPt   = REC_TOP_IN * PT_PER_IN;
+      const recTopPt   = (REC_TOP_IN_MAP[envType] || 1.5) * PT_PER_IN;
       const retMarginX = RET_X_IN * PT_PER_IN;
       const retTopPt   = RET_Y_IN * PT_PER_IN;
 
@@ -500,14 +732,14 @@
       const col = parseColourName(els.inkPreset.value);
       pdf.setTextColor(col.r, col.g, col.b);
 
-      // Embed custom TTF if selected, else built-in
-      if(els.useCustomFont.checked && ttfBase64){
+      const useCustom = els.useCustomFont.checked && ttfBase64;
+      if(useCustom){
         try{
-          const vfsName = ttfFileName || 'Uploaded.ttf';
+          const vfsName = 'Uploaded.ttf';
           pdf.addFileToVFS(vfsName, ttfBase64);
           pdf.addFont(vfsName, 'UploadedFont', 'normal');
           pdf.setFont('UploadedFont', 'normal');
-          setFontStatus(`Using custom font in PDF: ${ttfFileName} ✓`);
+          setFontStatus(`Using custom font in PDF ✓`);
         }catch(e){
           setFontStatus('Could not embed custom font — using built-in.');
           pdf.setFont('helvetica', 'normal');
@@ -517,26 +749,39 @@
         setFontStatus('Custom font not selected — using Helvetica.');
       }
 
+      const rotate = !!(els.rotate180 && els.rotate180.checked);
+      const textOut = (str, x, y, size) => {
+        pdf.setFontSize(size);
+        if(rotate){
+          pdf.text(str, pageWidth - x, pageHeight - y, { baseline: 'alphabetic', angle: 180 });
+        } else {
+          pdf.text(str, x, y, { baseline: 'alphabetic' });
+        }
+      };
+
       const retLines = (els.useReturn.checked && els.returnBlock.value.trim())
         ? els.returnBlock.value.replace(/\r/g,'').split('\n')
         : [];
 
       rows.forEach((r, i)=>{
         if(i>0) pdf.addPage([pageWidth, pageHeight], 'landscape');
-        // Return
+
+        // Return (with label)
         if(retLines.length){
           let y = retTopPt + retPt;
-          pdf.setFontSize(retPt);
-          retLines.forEach(line => { pdf.text(line, retMarginX, y, { baseline: 'alphabetic' }); y += retPt*1.2; });
+          textOut('Return Address:', retMarginX, y, retPt);
+          y += retPt*1.2;
+          retLines.forEach(line => { textOut(line, retMarginX, y, retPt); y += retPt*1.2; });
         }
+
         // Recipient
         let yRec = recTopPt + namePt;
-        pdf.setFontSize(namePt);
-        if(r.name){ pdf.text(r.name, recXpt, yRec, { baseline: 'alphabetic' }); yRec += namePt*1.1; }
-        r.lines.forEach(line => { pdf.text(line, recXpt, yRec, { baseline: 'alphabetic' }); yRec += namePt*1.1; });
+        textOut(r.name || '', recXpt, yRec, namePt);
+        if(r.name) yRec += namePt*1.1;
+        r.lines.forEach(line => { textOut(line, recXpt, yRec, namePt); yRec += namePt*1.1; });
       });
 
-      pdf.save('C5_Envelopes.pdf');
+      pdf.save(`Envelopes_${envType}.pdf`);
       setStatus('PDF downloaded.');
     }
 
@@ -559,14 +804,10 @@
 
     // Init
     (function initDefaults(){
-      els.modeSingle.checked = true;
-      // setup canvas
-      els.canvas.width = mmToPx(ENVELOPE_W_MM);
-      els.canvas.height = mmToPx(ENVELOPE_H_MM);
-      validateMode();
-      setStep(1);
+      applyEnvelope('C5');
+      setStep(0);
     })();
-  })();
+  });
   </script>
 </body>
 </html>
