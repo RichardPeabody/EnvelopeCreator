@@ -3,103 +3,113 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Envelope Creator — Wizard</title>
+  <title>Envelope Creator — Wizard (Chevron Stepper)</title>
   <style>
-    :root { --bg:#f6f7fb; --card:#ffffff; --text:#0f172a; --muted:#64748b; --accent:#2f46ff; --border:#e5e7eb; --shadow:0 10px 30px rgba(15,23,42,.08); }
-    [data-theme="dark"]{ --bg:#0b1020; --card:#0f152b; --text:#eef2ff; --muted:#9aa3b2; --border:#1e294a; --shadow:0 10px 30px rgba(0,0,0,.6); }
+    :root {
+      --bg:#f6f7fb; --card:#ffffff; --text:#0f172a; --muted:#64748b; --accent:#2f46ff; --border:#e5e7eb; --shadow:0 10px 30px rgba(15,23,42,.08);
+      --chev-bg:#e5e7eb; --chev-active:#60a5fa; --chev-done:#86efac; --chev-text:#1f2937;
+      --safe-gap:16px;
+    }
+    [data-theme="dark"]{
+      --bg:#0b1020; --card:#0f152b; --text:#eef2ff; --muted:#9aa3b2; --border:#1e294a; --shadow:0 10px 30px rgba(0,0,0,.6);
+      --chev-bg:#1f2937; --chev-active:#2563eb; --chev-done:#16a34a; --chev-text:#e5e7eb;
+    }
     *{ box-sizing:border-box; }
     html,body{ height:100%; overflow-x:hidden; }
-    body{ margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
-    header{
-      position:sticky; top:0; left:0; right:0; width:100%;
-      z-index:20;
-      background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%);
-      color:white; padding:14px 18px; box-shadow:var(--shadow);
-    }
-    header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; width:100%; }
-    h1{ font-size:18px; margin:0; letter-spacing:.2px; font-weight:700; }
+    body{ margin:0; background:var(--bg); color:var(--text); font: clamp(14px,1.6vw,16px)/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
 
-    main{ max-width:1200px; margin:16px auto; padding:0 16px; display:grid; grid-template-columns:1fr 1.1fr; gap:16px; }
-    @media (max-width: 1024px){ main{ grid-template-columns:1fr; } }
+    header{ position:sticky; top:0; left:0; right:0; width:100vw; z-index:20;
+      background:linear-gradient(135deg,#0b3bff 0%,#7a9bff 100%); color:white; padding:12px 0; box-shadow:var(--shadow); }
+    header .row{ display:flex; align-items:center; gap:12px; justify-content:space-between; max-width:1200px; margin:0 auto; padding:0 var(--safe-gap); width:100%; }
+    h1{ font-size: clamp(16px, 2.8vw, 18px); margin:0; letter-spacing:.2px; font-weight:700; }
+
+    main{ max-width:1200px; margin:16px auto; padding:0 var(--safe-gap); display:grid; grid-template-columns:1fr 1.08fr; gap:16px; }
+    @media (max-width: 900px){ main{ grid-template-columns:1fr; gap:12px; } }
 
     .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; overflow:hidden; }
-    .card h2{ margin:0 0 12px; font-size:16px; }
-    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; cursor:pointer; }
-    input[type="file"], textarea, input[type="number"], input[type="text"], select{ width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:inherit; }
+    .card h2{ margin:0 0 10px; font-size: clamp(15px, 3vw, 16px); }
+    label{ display:block; font-size:12px; color:var(--muted); margin:8px 0 6px; cursor:pointer; }
+
+    input[type="file"], textarea, input[type="number"], input[type="text"], select{
+      width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:inherit;
+    }
     textarea{ min-height:110px; resize:vertical; font-family:inherit; }
     .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .btn{ appearance:none; border:0; padding:12px 14px; border-radius:12px; background:var(--accent); color:white; cursor:pointer; font-weight:700; letter-spacing:.2px; box-shadow:0 8px 18px rgba(47,70,255,.25); }
+    @media (max-width: 520px){ .row2{ grid-template-columns:1fr; } }
+
+    .btn{ appearance:none; border:0; padding:12px 14px; border-radius:12px; background:var(--accent); color:white; cursor:pointer; font-weight:700;
+      letter-spacing:.2px; box-shadow:0 8px 18px rgba(47,70,255,.25); }
     .btn.secondary{ background:transparent; color:var(--accent); border:1px solid var(--accent); box-shadow:none; }
     .btn:disabled{ opacity:.45; cursor:not-allowed; }
     .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    @media (max-width:520px){ .toolbar{ gap:8px; } .toolbar .btn{ flex:1 1 calc(50% - 4px); min-height:44px; } #controlBar .btn{ flex:0 0 auto; } }
+
     .status{ font-size:12px; padding:8px 10px; border-radius:10px; background:#e9efff; color:#0b3bff; }
     [data-theme="dark"] .status{ background:#10224a; color:#89a4ff; }
 
-    .steps{ display:grid; grid-template-columns:repeat(8, 1fr); gap:8px; margin-bottom:12px; }
-    .step{ padding:10px 8px; border-radius:12px; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px; opacity:.75; text-align:center; user-select:none; }
-    .step.active{ opacity:1; background:#c7d2fe; color:#1e3a8a; }
-    .step.done{ opacity:1; background:#bbf7d0; color:#064e3b; }
+    /* Chevron stepper */
+    .chevron-steps{ display:flex; flex-wrap:nowrap; gap:0; overflow:hidden; border-radius:14px; background:transparent; padding:0; margin:0 0 12px; }
+    .chevron-steps li{ list-style:none; position:relative; flex:1 1 0; min-width:150px; padding:10px 28px 10px 36px;
+      background:var(--chev-bg); color:var(--chev-text); font-weight:700; font-size:12px; user-select:none; display:flex; align-items:center; gap:8px; white-space:nowrap; }
+    .chevron-steps li .k{ opacity:.8; font-weight:800; font-variant-numeric:tabular-nums; }
+    .chevron-steps li:not(:last-child)::after{
+      content:""; position:absolute; right:-18px; top:0; width:0; height:0;
+      border-top:22px solid transparent; border-bottom:22px solid transparent; border-left:18px solid var(--chev-bg);
+      z-index:2;
+    }
+    .chevron-steps li:not(:first-child)::before{
+      content:""; position:absolute; left:0; top:0; width:0; height:0;
+      border-top:22px solid transparent; border-bottom:22px solid transparent; border-left:18px solid var(--bg);
+      transform:translateX(-18px);
+    }
+    .chevron-steps li.active{ background:var(--chev-active); color:#0b1020; }
+    .chevron-steps li.active::after{ border-left-color:var(--chev-active); }
+    .chevron-steps li.done{ background:var(--chev-done); color:#064e3b; }
+    .chevron-steps li.done::after{ border-left-color:var(--chev-done); }
+    .chevron-steps li.todo{ opacity:.85; }
+    .chevron-steps{ overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; }
+    .chevron-steps li{ scroll-snap-align:start; }
+    .chevron-steps::-webkit-scrollbar{ height:6px; }
+    .chevron-steps::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:4px; }
 
-    .previewWrap{ position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); background: repeating-conic-gradient(#0000 0 90deg, #f3f4f6 0 180deg) 50%/20px 20px; }
+    .previewWrap{ position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border);
+      background: repeating-conic-gradient(#0000 0 90deg, #f3f4f6 0 180deg) 50%/20px 20px; }
     [data-theme="dark"] .previewWrap{ background: repeating-conic-gradient(#0000 0 90deg, #111827 0 180deg) 50%/20px 20px; }
     canvas{ display:block; width:100%; height:auto; background:white; transition:transform .2s ease; transform-origin:center center; }
-
-    .zoombar{ display:flex; align-items:center; gap:10px; margin-top:10px; color:var(--muted); }
-    input[type="range"]{ width:220px; }
+    .zoombar{ display:flex; align-items:center; gap:10px; margin-top:10px; color:var(--muted); flex-wrap:wrap; }
+    input[type="range"]{ width: clamp(180px, 45vw, 240px); }
 
     .hidden{ display:none !important; }
     .error{ color:#b91c1c; font-size:12px; margin-top:6px; }
-
-    @media (max-width:520px){ .step{ font-size:11px; padding:8px 6px; } }
-
     .btn.review { border:2px dashed var(--accent); background:transparent; color:var(--accent); }
     .muted{ color:var(--muted); font-size:12px; }
-    .drop{ margin-top:8px; padding:10px; border:1px dashed var(--border); border-radius:10px; text-align:center; }
+    .drop{ margin-top:8px; padding:12px; border:1px dashed var(--border); border-radius:10px; text-align:center; }
     .drop.drag{ border-color: var(--accent); background: rgba(47,70,255,.05); }
 
-    /* Intro animated background */
-    .introWrap{
-      position:relative; padding:24px 24px 48px; /* extra bottom padding so button clears paper */
+    /* Intro */
+    .introWrap{ position:relative; padding:20px 20px 96px;
       background: radial-gradient(1200px 600px at -10% -10%, #eef1ff, transparent 60%),
                   radial-gradient(1000px 500px at 110% 10%, #dde5ff, transparent 60%);
-    }
-
-    /* Printer animation with rollers + typing lines */
-    .printer { width:320px; height:200px; background:linear-gradient(180deg,#2d2d32,#18181c); border-radius:14px; margin:20px auto 28px; position:relative; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+      border-radius:12px; }
+    .printer { width:320px; height:200px; background:linear-gradient(180deg,#2d2d32,#18181c); border-radius:14px; margin:14px auto 20px; position:relative; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
     .printer::after{ content:''; position:absolute; left:50%; transform:translateX(-50%); bottom:-10px; width:220px; height:14px; background:rgba(0,0,0,.35); border-radius:50%; filter:blur(4px); }
     .slot{ position:absolute; top:18px; left:20px; right:20px; height:18px; background:#0d0d10; border-radius:8px; box-shadow: inset 0 2px 6px rgba(255,255,255,.08), inset 0 -2px 6px rgba(0,0,0,.6); }
     .roller{ position:absolute; top:48px; left:40px; right:40px; height:8px; background:repeating-linear-gradient(90deg, #5b5b60 0 10px, #3a3a3f 10px 20px); border-radius:6px; filter:brightness(1.1); animation:roll 1s linear infinite; }
     @keyframes roll{ to{ background-position-x:20px; } }
-    .paper { width:250px; height:160px; background:#fff; border:2px solid #e5e7eb; position:absolute; top:28px; left:50%; transform:translateX(-50%); animation:print 4s infinite ease-in-out; border-radius:6px; overflow:hidden; pointer-events:none; }
+    .paper { width:250px; height:160px; background:#fff; border:2px solid #e5e7eb; position:absolute; top:28px; left:50%; transform:translateX(-50%); animation:print 4s infinite ease-in-out; border-radius:6px; overflow:hidden; pointer-events:none; z-index:1; }
     .envelopeArt{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; opacity:.95; }
     .envelopeArt svg{ width:85%; height:auto; }
     .addrLines{ position:absolute; top:64px; left:56px; right:30px; height:60px; }
     .line{ height:10px; background:#1f2937; opacity:.85; margin:6px 0; width:0; border-radius:2px; animation: type 3s steps(20,end) infinite; }
     .line:nth-child(2){ animation-delay:.4s; width:0; }
     .line:nth-child(3){ animation-delay:.8s; width:0; }
-    @keyframes type{
-      0%{ width:0; }
-      60%{ width:75%; }
-      100%{ width:75%; }
-    }
-    @keyframes print {
-      0%{ transform:translate(-50%, -40px); opacity:0; }
-      10%{ opacity:1; }
-      50%{ transform:translate(-50%, 60px); }
-      75%{ transform:translate(-50%, 12px); }
-      100%{ transform:translate(-50%, -40px); opacity:0; }
-    }
+    @keyframes type{ 0%{ width:0; } 60%{ width:75%; } 100%{ width:75%; } }
+    @keyframes print { 0%{ transform:translate(-50%, -40px); opacity:0; } 10%{ opacity:1; } 50%{ transform:translate(-50%, 60px); } 75%{ transform:translate(-50%, 12px); } 100%{ transform:translate(-50%, -40px); opacity:0; } }
 
-    /* Confetti */
     .confetti{ position:absolute; inset:0; pointer-events:none; }
-    .confetti i{
-      position:absolute; width:8px; height:8px; background:var(--accent);
-      top:50%; left:50%; transform:translate(-50%,-50%);
-      opacity:0; border-radius:2px;
-    }
-
-    /* Ensure the Start toolbar sits above animated content */
-    #introStartBar{ position:relative; z-index:2; margin-top:22px; }
+    .confetti i{ position:absolute; width:8px; height:8px; background:var(--accent); top:50%; left:50%; transform:translate(-50%,-50%); opacity:0; border-radius:2px; }
+    #introStartBar{ position:relative; z-index:2; margin-top:16px; display:flex; justify-content:center; }
+    @media (max-width:430px){ .printer{ width:280px; height:176px; } .paper{ width:220px; height:150px; } .introWrap{ padding-bottom:108px; } .toolbar .btn{ min-height:44px; } }
   </style>
 </head>
 <body>
@@ -113,20 +123,19 @@
   </header>
 
   <main>
-    <!-- Wizard Column -->
     <section class="card" id="wizard">
-      <div class="steps">
-        <div class="step" id="s0">0. Intro</div>
-        <div class="step" id="s1">1. Envelope</div>
-        <div class="step" id="s2">2. Mode</div>
-        <div class="step" id="s3">3. Data</div>
-        <div class="step" id="s4">4. Font</div>
-        <div class="step" id="s5">5. Return</div>
-        <div class="step" id="s6">6. Options</div>
-        <div class="step" id="s7">7. Preview & PDF</div>
-      </div>
+      <ul class="chevron-steps" id="chev">
+        <li id="c0"><span class="k">0.</span> Intro</li>
+        <li id="c1"><span class="k">1.</span> Envelope</li>
+        <li id="c2"><span class="k">2.</span> Mode</li>
+        <li id="c3"><span class="k">3.</span> Data</li>
+        <li id="c4"><span class="k">4.</span> Font</li>
+        <li id="c5"><span class="k">5.</span> Return</li>
+        <li id="c6"><span class="k">6.</span> Options</li>
+        <li id="c7"><span class="k">7.</span> Preview & PDF</li>
+      </ul>
 
-      <!-- Step 0: Intro -->
+      <!-- Step 0 -->
       <div id="step0">
         <div class="introWrap">
           <h2 style="position:relative; z-index:1;">Welcome to Envelope Creator</h2>
@@ -136,19 +145,13 @@
             <div class="roller"></div>
             <div class="paper">
               <div class="envelopeArt">
-                <!-- FRONT of envelope with UK-style stamp + frank -->
                 <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <!-- Envelope body -->
                   <rect x="10" y="20" width="180" height="80" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
-                  <!-- Address guide box (subtle) -->
                   <rect x="40" y="48" width="100" height="44" rx="2" fill="none" stroke="#e5e7eb" stroke-width="1.5" stroke-dasharray="4 4"/>
-                  <!-- Stamp: red with scalloped white border + crown silhouette -->
                   <rect x="148" y="22" width="30" height="30" rx="3" fill="#ef4444" stroke="#ffffff" stroke-width="3"/>
                   <path d="M152 41 c4 -8 9 -12 13 -12 s9 4 13 12" fill="none" stroke="#ffffff" stroke-width="2"/>
                   <path d="M158 36 l4 -6 l4 6" fill="none" stroke="#ffffff" stroke-width="2"/>
-                  <!-- Circular postmark -->
                   <circle cx="165" cy="38" r="13" fill="none" stroke="#475569" stroke-width="1.5"/>
-                  <!-- Longer wavy cancellation lines -->
                   <path d="M118 34 C128 30, 138 30, 148 34 S168 38, 178 34" stroke="#64748b" stroke-width="1.5" fill="none"/>
                   <path d="M118 38 C128 34, 138 34, 148 38 S168 42, 178 38" stroke="#64748b" stroke-width="1.5" fill="none"/>
                   <path d="M118 42 C128 38, 138 38, 148 42 S168 46, 178 42" stroke="#64748b" stroke-width="1.5" fill="none"/>
@@ -162,13 +165,13 @@
             </div>
             <div class="confetti" id="confetti"></div>
           </div>
-          <div class="toolbar" id="introStartBar" style="justify-content:center;">
+          <div class="toolbar" id="introStartBar">
             <button id="next0" class="btn" type="button">Start ▷</button>
           </div>
         </div>
       </div>
 
-      <!-- Step 1: Envelope type -->
+      <!-- Step 1 -->
       <div id="step1" class="hidden">
         <h2>Select Envelope Type</h2>
         <label><input type="radio" name="envType" id="envC5" checked /> C5 (229 × 162 mm)</label>
@@ -179,7 +182,7 @@
         </div>
       </div>
 
-      <!-- Step 2: Mode -->
+      <!-- Step 2 -->
       <div id="step2" class="hidden">
         <h2>Single address or multiple addresses?</h2>
         <label><input type="radio" name="mode" id="modeSingle" /> Single address (add multiple one by one)</label>
@@ -198,12 +201,11 @@
         </div>
       </div>
 
-      <!-- Step 3: Data (multi only) -->
+      <!-- Step 3 -->
       <div id="step3" class="hidden">
         <h2>Upload your data (.xlsx or .csv)</h2>
         <input id="fileXlsx" type="file" accept=".xlsx,.csv" />
         <div class="drop" id="drop">or drag a file here</div>
-        <!-- Header-row explainer + dropdown -->
         <label style="margin-top:12px;">Does your data have a header row?</label>
         <p class="muted" style="margin-top:-6px;">A header row is when the top row of a spreadsheet has labels to describe what data lies below in each column</p>
         <select id="hasHeader">
@@ -217,7 +219,7 @@
         </div>
       </div>
 
-      <!-- Step 4: Font -->
+      <!-- Step 4 -->
       <div id="step4" class="hidden">
         <h2>Font</h2>
         <label><input type="checkbox" id="useCustomFont" /> Use a custom TTF (upload below)</label>
@@ -231,7 +233,7 @@
         <div id="statusInline" class="status" style="margin-top:8px;"></div>
       </div>
 
-      <!-- Step 5: Return (optional) -->
+      <!-- Step 5 -->
       <div id="step5" class="hidden">
         <h2>Return Address (top-left, optional)</h2>
         <label><input type="checkbox" id="useReturn" /> Print a return address at the top left</label>
@@ -247,7 +249,7 @@
         </div>
       </div>
 
-      <!-- Step 6: Options -->
+      <!-- Step 6 -->
       <div id="step6" class="hidden">
         <h2>Print Options</h2>
         <div class="row2">
@@ -271,7 +273,7 @@
           </div>
           <div style="grid-column:1 / -1;">
             <label><input type="checkbox" id="rotate180" /> Rotate output 180° (fix printer flip / Edge)</label>
-            <p class="muted" style="margin-top:4px;">If your printer flips the envelope compared to Chrome, turn this on. The preview rotates to match the PDF.</p>
+            <p class="muted" style="margin-top:4px;">Some Browsers or pdf viewers flip the image so your envelope might print backwards.  If so, you can click here to ‘flip’ your PDF during generation. The preview will rotate to match the PDF.</p>
           </div>
         </div>
         <div id="err4" class="error hidden"></div>
@@ -281,7 +283,7 @@
         </div>
       </div>
 
-      <!-- Step 7: Preview & PDF -->
+      <!-- Step 7 -->
       <div id="step7" class="hidden">
         <h2>Preview & PDF</h2>
         <div class="toolbar" id="controlBar" style="margin-bottom:10px;">
@@ -294,7 +296,6 @@
       </div>
     </section>
 
-    <!-- Preview Column -->
     <section class="card hidden" id="previewCard">
       <h2>Live Preview (<span id="envLabel">C5</span> landscape)</h2>
       <div class="toolbar" id="reviewBar" style="margin-bottom:0;">
@@ -313,25 +314,24 @@
     </section>
   </main>
 
-  <!-- Libraries -->
+  <!-- Libs -->
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
   window.addEventListener('DOMContentLoaded', () => {
-    // ===== Helpers & state =====
     const MM_PER_IN = 25.4, PT_PER_IN = 72;
     const ENVELOPES = { C5:{W_MM:229,H_MM:162}, DL:{W_MM:220,H_MM:110} };
     let envType = 'C5';
 
-    const REC_X_IN = 2;                      // left offset (inches)
-    const REC_TOP_IN_MAP = { C5: 2.5, DL: 1.5 }; // top offset by envelope type
-    const RET_X_IN = 0.5, RET_Y_IN = 0.5;   // return offset (inches)
+    const REC_X_IN = 2;
+    const REC_TOP_IN_MAP = { C5: 2.5, DL: 1.5 };
+    const RET_X_IN = 0.5, RET_Y_IN = 0.5;
 
-    let pxPerMM = 10; // canvas scale
+    let pxPerMM = 10;
     const $ = s => document.querySelector(s);
     const els = {
-      steps:[ $('#s0'),$('#s1'),$('#s2'),$('#s3'),$('#s4'),$('#s5'),$('#s6'),$('#s7') ],
+      steps: Array.from(document.querySelectorAll('.chevron-steps li')),
       step0:$('#step0'), step1:$('#step1'), step2:$('#step2'), step3:$('#step3'), step4:$('#step4'), step5:$('#step5'), step6:$('#step6'), step7:$('#step7'),
       next0:$('#next0'),
       envC5:$('#envC5'), envDL:$('#envDL'), nextEnv:$('#nextEnv'), back1:$('#back1'),
@@ -348,21 +348,18 @@
 
     const mmToPx = mm => Math.round(mm * pxPerMM);
     const inToPx = inch => Math.round(inch * pxPerMM * MM_PER_IN);
-    const mmToPt = mm => (mm / MM_PER_IN) * PT_PER_IN;
-    const ptToPx = pt => pt * ((pxPerMM * MM_PER_IN) / PT_PER_IN); // pt → px for preview
-    const mmToPtDoc = mm => (mm / MM_PER_IN) * PT_PER_IN; // duplicate for clarity
+    const ptToPx = pt => pt * ((pxPerMM * MM_PER_IN) / PT_PER_IN);
 
-    // Track current step index for reliable back behavior
-    function currentStepIndex(){
-      const blocks=[els.step0,els.step1,els.step2,els.step3,els.step4,els.step5,els.step6,els.step7];
-      return blocks.findIndex(b => !b.classList.contains('hidden'));
-    }
+    function currentStepIndex(){ return [els.step0,els.step1,els.step2,els.step3,els.step4,els.step5,els.step6,els.step7].findIndex(b => !b.classList.contains('hidden')); }
     function updateProgress(n){
       els.steps.forEach((s,i)=>{
-        s.classList.remove('done','active');
+        s.classList.remove('done','active','todo');
         if(i===n) s.classList.add('active');
-        if(i < n) s.classList.add('done');
+        if(i<n) s.classList.add('done');
+        if(i>n) s.classList.add('todo');
       });
+      const active = els.steps[n];
+      if(active && active.scrollIntoView){ active.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); }
     }
     function setStep(n){
       const blocks=[els.step0,els.step1,els.step2,els.step3,els.step4,els.step5,els.step6,els.step7];
@@ -374,39 +371,19 @@
       attachBackHandlers();
     }
 
-    function setStatus(msg){
-      if(els.status) els.status.textContent = msg;
-      const si = document.getElementById('statusInline');
-      if (si) si.textContent = msg;
-    }
-    function setFontStatus(msg){
-      const si = document.getElementById('statusInline');
-      if (si) si.textContent = msg;
-      const sp = document.getElementById('statusPreview');
-      if (sp) sp.textContent = msg;
-    }
-    const parseColourName = name => {
-      switch(name){
-        case 'blueblack': return {r:0,g:0,b:77};
-        case 'blue':      return {r:0,g:87,b:255};
-        case 'red':       return {r:227,g:27,b:35};
-        case 'orange':    return {r:249,g:115,b:22};
-        default:          return {r:0,g:0,b:0};
-      }
-    };
+    function setStatus(msg){ if(els.status) els.status.textContent = msg; const si = document.getElementById('statusInline'); if (si) si.textContent = msg; }
+    function setFontStatus(msg){ const si = document.getElementById('statusInline'); if (si) si.textContent = msg; const sp = document.getElementById('statusPreview'); if (sp) sp.textContent = msg; }
+    const parseColourName = name => ({blueblack:{r:0,g:0,b:77}, blue:{r:0,g:87,b:255}, red:{r:227,g:27,b:35}, orange:{r:249,g:115,b:22}}[name]||{r:0,g:0,b:0});
 
-    // ===== Dynamic envelope sizing =====
     function applyEnvelope(type){
       envType = type;
-      const W_MM = ENVELOPES[envType].W_MM;
-      const H_MM = ENVELOPES[envType].H_MM;
-      els.canvas.width = mmToPx(W_MM);
-      els.canvas.height = mmToPx(H_MM);
+      const s = ENVELOPES[envType];
+      els.canvas.width = mmToPx(s.W_MM);
+      els.canvas.height = mmToPx(s.H_MM);
       els.envLabel.textContent = envType;
       drawPreview();
     }
 
-    // ===== Wizard nav =====
     let rows = []; let idx = 0; let mode = null;
     let customFontLoaded = false; let ttfBase64 = null;
 
@@ -430,30 +407,24 @@
       els.counter.textContent = ready ? `Preview ${idx+1} / ${rows.length}` : '';
     }
 
-    // Theme
     els.themeToggle.addEventListener('click', ()=>{
       const cur=document.documentElement.getAttribute('data-theme')||'light';
       document.documentElement.setAttribute('data-theme',cur==='light'?'dark':'light');
     });
 
-    // Zoom
     function applyZoom(){
       const z=parseInt(els.zoom.value,10)/100;
       els.wrap.style.transform=`scale(${z})`;
       els.wrap.style.transformOrigin='top left';
-      els.zoomLabel.textContent=`${Math.round(z*100)}%`;
+      els.zoomLabel.textContent=`${Math.round(z*100)}%`
     }
     els.zoom.addEventListener('input', applyZoom);
 
-    function applyRotationPreview(){
-      els.canvas.style.transform = (els.rotate180 && els.rotate180.checked) ? 'rotate(180deg)' : 'none';
-    }
+    function applyRotationPreview(){ els.canvas.style.transform = (els.rotate180 && els.rotate180.checked) ? 'rotate(180deg)' : 'none'; }
     if(els.rotate180){ els.rotate180.addEventListener('change', ()=>{ applyRotationPreview(); drawPreview(); }); }
 
-    // Step 0: Intro
     function burstConfetti(){
-      const c = els.confetti;
-      if(!c) return;
+      const c = els.confetti; if(!c) return;
       c.innerHTML = '';
       for(let i=0;i<24;i++){
         const dot = document.createElement('i');
@@ -474,15 +445,11 @@
     }
     els.next0.addEventListener('click', ()=>{ burstConfetti(); setTimeout(()=> setStep(1), 150); });
 
-    // Step 1: Envelope type
-    function readEnvSelection(){
-      applyEnvelope(els.envDL.checked ? 'DL' : 'C5');
-    }
+    function readEnvSelection(){ applyEnvelope(els.envDL.checked ? 'DL' : 'C5'); }
     els.envC5.addEventListener('change', readEnvSelection);
     els.envDL.addEventListener('change', readEnvSelection);
     els.nextEnv.addEventListener('click', ()=>{ readEnvSelection(); setStep(2); });
 
-    // Step 2: Mode
     function parseSinglesIntoRows(){
       const blocks = Array.from(els.singleList.querySelectorAll('textarea.singleAddress'));
       const out = [];
@@ -495,9 +462,7 @@
           out.push({ name, lines: addr });
         }
       });
-      rows = out;
-      idx = 0;
-      updateButtons();
+      rows = out; idx = 0; updateButtons();
     }
     function addSingleBlock(){
       const ta = document.createElement('textarea');
@@ -520,7 +485,6 @@
       els.modeMulti.addEventListener(ev, validateMode);
     });
     els.singleList.addEventListener('input', ()=>{ if(mode==='single') parseSinglesIntoRows(); });
-    // seed first block with input listener
     els.singleList.querySelector('textarea.singleAddress').addEventListener('input', ()=>{ if(mode==='single') parseSinglesIntoRows(); });
 
     els.nextMode.addEventListener('click', ()=>{
@@ -530,7 +494,6 @@
     });
     els.back2a.addEventListener('click', ()=> setStep(1));
 
-    // Step 3: CSV/XLSX
     function parseCSV(text){
       const out=[]; let cur=''; let row=[]; let inQ=false;
       for(let i=0;i<text.length;i++){
@@ -570,13 +533,12 @@
     }
     els.fileXlsx.addEventListener('change', e=> handleDataFile(e.target.files && e.target.files[0]));
     els.hasHeader.addEventListener('change', ()=>{ const f=els.fileXlsx.files && els.fileXlsx.files[0]; if(f) handleDataFile(f); });
-    ;['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
-    ;['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
+    ['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
     els.drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files && e.dataTransfer.files[0]; if(f) handleDataFile(f); });
     els.next1.addEventListener('click', ()=> setStep(4));
     els.back3a.addEventListener('click', ()=> setStep(2));
 
-    // Step 4: Font (auto-enable on upload; embed same font in PDF)
     function abToBase64(buf){
       let binary = '';
       const bytes = new Uint8Array(buf);
@@ -599,7 +561,6 @@
         if(!els.useCustomFont.checked){ els.useCustomFont.checked = true; els.fileTtf.classList.remove('hidden'); }
         const buf=await file.arrayBuffer();
         ttfBase64 = abToBase64(buf);
-        // Load for preview
         const url=URL.createObjectURL(new Blob([buf],{type:'font/ttf'}));
         const nameHint=(file.name||'CustomFont.ttf').replace(/\W+/g,'_');
         window.__fontName = `UploadedFont_${nameHint}_${Math.random().toString(36).slice(2)}`;
@@ -626,29 +587,19 @@
     });
     els.back2.addEventListener('click', ()=> setStep(3));
 
-    // Step 5: Return
     try{
       const saved=localStorage.getItem('envelope_return_v1');
       if(saved){ els.returnBlock.value=saved; }
       const savedUse=localStorage.getItem('envelope_useReturn_v1');
       if(savedUse==='1'){ els.useReturn.checked=true; els.returnBlockWrap.classList.remove('hidden'); }
     }catch(_){}
-    els.useReturn.addEventListener('change', ()=>{
-      els.returnBlockWrap.classList.toggle('hidden', !els.useReturn.checked);
-    });
+    els.useReturn.addEventListener('change', ()=>{ els.returnBlockWrap.classList.toggle('hidden', !els.useReturn.checked); });
     els.rememberReturn.addEventListener('change', ()=>{
       if(els.rememberReturn.checked && els.returnBlock.value.trim()){
-        try{
-          localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim());
-          localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0');
-        }catch(_){}
+        try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); localStorage.setItem('envelope_useReturn_v1', els.useReturn.checked?'1':'0'); }catch(_){}
       }
     });
-    els.returnBlock.addEventListener('input', ()=>{
-      if(els.rememberReturn.checked){
-        try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(_){}
-      }
-    });
+    els.returnBlock.addEventListener('input', ()=>{ if(els.rememberReturn.checked){ try{ localStorage.setItem('envelope_return_v1', els.returnBlock.value.trim()); }catch(_){} } });
     els.back3.addEventListener('click', ()=> setStep(4));
     els.next3.addEventListener('click', ()=>{
       if(els.useReturn.checked && !els.returnBlock.value.trim()){
@@ -660,17 +611,14 @@
       setStep(6);
     });
 
-    // Step 6
     els.back4.addEventListener('click', ()=> setStep(5));
     els.toPreview.addEventListener('click', ()=>{ setStep(7); });
 
-    // Preview (pt→px, same font as PDF when uploaded)
     function drawPreview(){
-      const W_MM = ENVELOPES[envType].W_MM;
-      const H_MM = ENVELOPES[envType].H_MM;
+      const s = ENVELOPES[envType];
       const canvas = els.canvas;
-      canvas.width = mmToPx(W_MM);
-      canvas.height = mmToPx(H_MM);
+      canvas.width = mmToPx(s.W_MM);
+      canvas.height = mmToPx(s.H_MM);
 
       const W=canvas.width, H=canvas.height;
       const ctx = canvas.getContext('2d');
@@ -684,28 +632,24 @@
       const previewFontReturn = (customFontLoaded && window.__fontName) ? `${Math.round(retPx)}px ${window.__fontName}, Arial, sans-serif` : `${Math.round(retPx)}px Arial, sans-serif`;
       const ink = parseColourName(els.inkPreset.value);
 
-      // Return (with label)
       if(els.useReturn.checked && els.returnBlock.value.trim()){
         ctx.fillStyle = `rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFontReturn; ctx.textAlign='left';
         const retLeft = inToPx(RET_X_IN); let y = inToPx(RET_Y_IN) + retPx;
         ctx.fillText('Return Address:', retLeft, y);
         y += Math.round(retPx*1.2);
-        const lines = els.returnBlock.value.replace(/\r/g,'').split('\n');
-        for(const line of lines){ ctx.fillText(line, retLeft, y); y += Math.round(retPx*1.2); }
+        els.returnBlock.value.replace(/\r/g,'').split('\n').forEach(line => { ctx.fillText(line, retLeft, y); y += Math.round(retPx*1.2); });
       }
 
-      // Recipient (top depends on envelope type)
       const recTopIn = REC_TOP_IN_MAP[envType] || 1.5;
       ctx.fillStyle=`rgb(${ink.r},${ink.g},${ink.b})`; ctx.font = previewFont;
       const recX=inToPx(REC_X_IN); let recY=inToPx(recTopIn) + namePx;
       const rcp=rows[idx];
       if(rcp){
         if(rcp.name){ ctx.fillText(rcp.name, recX, recY); recY += Math.round(namePx*1.1); }
-        for(const l of rcp.lines){ ctx.fillText(l, recX, recY); recY += Math.round(namePx*1.1); }
+        rcp.lines.forEach(l => { ctx.fillText(l, recX, recY); recY += Math.round(namePx*1.1); });
       } else {
         ctx.fillStyle='#999'; ctx.font='16px system-ui'; ctx.fillText('Enter addresses (Single) or upload .xlsx/.csv (Multi)…',16,32);
       }
-
       els.counter.textContent = rows.length?`Preview ${idx+1} / ${rows.length}`:'';
     }
 
@@ -713,12 +657,12 @@
     els.btnNext.addEventListener('click', ()=>{ if(idx<rows.length-1){ idx++; drawPreview(); updateButtons(); } });
     els.btnBackPreview.addEventListener('click', ()=> setStep(6));
 
-    // PDF via jsPDF with per-text rotation option
     async function generatePDF(){
       if(rows.length===0){ setStatus('No addresses to print.'); return; }
       const { jsPDF } = window.jspdf;
-      const pageWidth  = mmToPt(ENVELOPES[envType].W_MM);
-      const pageHeight = mmToPt(ENVELOPES[envType].H_MM);
+      const s = ENVELOPES[envType];
+      const pageWidth  = (s.W_MM / MM_PER_IN) * PT_PER_IN;
+      const pageHeight = (s.H_MM / MM_PER_IN) * PT_PER_IN;
       const pdf = new jsPDF({orientation:'landscape', unit:'pt', format:[pageWidth, pageHeight]});
 
       const recXpt     = REC_X_IN * PT_PER_IN;
@@ -751,12 +695,10 @@
 
       const rotate = !!(els.rotate180 && els.rotate180.checked);
       const textOut = (str, x, y, size) => {
+        if(!str) return;
         pdf.setFontSize(size);
-        if(rotate){
-          pdf.text(str, pageWidth - x, pageHeight - y, { baseline: 'alphabetic', angle: 180 });
-        } else {
-          pdf.text(str, x, y, { baseline: 'alphabetic' });
-        }
+        if(rotate){ pdf.text(str, pageWidth - x, pageHeight - y, { baseline: 'alphabetic', angle: 180 }); }
+        else { pdf.text(str, x, y, { baseline: 'alphabetic' }); }
       };
 
       const retLines = (els.useReturn.checked && els.returnBlock.value.trim())
@@ -765,16 +707,12 @@
 
       rows.forEach((r, i)=>{
         if(i>0) pdf.addPage([pageWidth, pageHeight], 'landscape');
-
-        // Return (with label)
         if(retLines.length){
           let y = retTopPt + retPt;
           textOut('Return Address:', retMarginX, y, retPt);
           y += retPt*1.2;
           retLines.forEach(line => { textOut(line, retMarginX, y, retPt); y += retPt*1.2; });
         }
-
-        // Recipient
         let yRec = recTopPt + namePt;
         textOut(r.name || '', recXpt, yRec, namePt);
         if(r.name) yRec += namePt*1.1;
@@ -793,7 +731,6 @@
       finally{ els.btnGenerate.disabled=false; }
     });
 
-    // Live redraw hooks
     ['fsRecipient','fsReturn','useReturn','inkPreset','returnBlock'].forEach(id=>{
       const el=$('#'+id);
       if(el){
@@ -802,7 +739,6 @@
       }
     });
 
-    // Init
     (function initDefaults(){
       applyEnvelope('C5');
       setStep(0);
